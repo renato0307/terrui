@@ -9,9 +9,10 @@ import (
 
 type App struct {
 	*tview.Application
-	prompt *Prompt
-	main   *tview.Grid
-	header *tview.TextView
+	layout  *tview.Grid
+	content *tview.Pages
+	prompt  *Prompt
+	header  *tview.TextView
 }
 
 func NewApp() *App {
@@ -27,7 +28,7 @@ func NewApp() *App {
 		SetRows(1, 0, 1).
 		SetBorders(true)
 
-	content := newPrimitive("")
+	content := tview.NewPages()
 	header := newPrimitive("terrui")
 	prompt := NewPrompt(grid.GetBackgroundColor())
 
@@ -38,8 +39,9 @@ func NewApp() *App {
 	app := tview.NewApplication()
 	a := &App{
 		Application: app,
+		content:     content,
 		header:      header,
-		main:        grid,
+		layout:      grid,
 		prompt:      prompt,
 	}
 	prompt.AddListener("app", a)
@@ -66,15 +68,28 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 }
 
 func (a *App) Completed(text string) {
-	a.header.SetText("cmd: " + text)
-	a.SetFocus(a.main)
-	a.SetInputCapture(a.appKeyboard)
+	if text == "orgs" || text == "o" {
+		go func() {
+			a.header.SetText("organizations")
+			orgList := NewOrganizationList()
+			a.content.AddAndSwitchToPage("orgs", orgList, true)
+			a.Draw()
+
+			orgList.Execute()
+			a.Draw()
+
+			a.SetFocus(orgList)
+		}()
+		return
+	}
+
+	a.SetFocus(a.layout)
 }
 
 func (a *App) Canceled() {
-	a.SetFocus(a.main)
+	a.SetFocus(a.layout)
 }
 
 func (a *App) Run() error {
-	return a.SetRoot(a.main, true).SetFocus(a.main).Run()
+	return a.SetRoot(a.layout, true).SetFocus(a.layout).Run()
 }
