@@ -30,7 +30,7 @@ func NewApp() *App {
 
 	content := tview.NewPages()
 	header := newPrimitive("terrui")
-	prompt := NewPrompt(grid.GetBackgroundColor())
+	prompt := NewPrompt(nil, grid.GetBackgroundColor())
 
 	grid.AddItem(header, 0, 0, 1, 3, 0, 0, false).
 		AddItem(prompt, 2, 0, 1, 3, 0, 0, false).
@@ -45,6 +45,7 @@ func NewApp() *App {
 		prompt:      prompt,
 	}
 	prompt.AddListener("app", a)
+	prompt.SetApp(a)
 	a.SetInputCapture(a.appKeyboard)
 
 	return a
@@ -68,25 +69,24 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 }
 
 func (a *App) Completed(text string) {
+	a.ResetFocus()
 	if text == "orgs" || text == "o" {
-		go func() {
-			a.header.SetText("organizations")
-			orgList := NewOrganizationList()
-			a.content.AddAndSwitchToPage("orgs", orgList, true)
-			a.Draw()
-
-			orgList.Execute()
-			a.Draw()
-
-			a.SetFocus(orgList)
-		}()
+		a.header.SetText("organizations")
+		orgList := NewOrganizationList(a)
+		a.content.AddAndSwitchToPage("orgs", orgList, true)
+		go orgList.Load()
 		return
 	}
 
-	a.SetFocus(a.layout)
+	a.header.SetText("invalid command")
 }
 
 func (a *App) Canceled() {
+	_, frontPage := a.content.GetFrontPage()
+	a.SetFocus(frontPage)
+}
+
+func (a *App) ResetFocus() {
 	a.SetFocus(a.layout)
 }
 

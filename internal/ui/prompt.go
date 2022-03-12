@@ -19,13 +19,16 @@ type PromptListener interface {
 type Prompt struct {
 	*tview.InputField
 
+	app       *App
 	listeners map[string]PromptListener
 }
 
-func NewPrompt(bgColor tcell.Color) *Prompt {
+func NewPrompt(app *App, bgColor tcell.Color) *Prompt {
 	p := Prompt{
 		InputField: tview.NewInputField(),
-		listeners:  map[string]PromptListener{},
+
+		app:       app,
+		listeners: map[string]PromptListener{},
 	}
 
 	p.SetInputCapture(p.keyboard)
@@ -39,7 +42,12 @@ func (p *Prompt) AddListener(k string, l PromptListener) {
 }
 
 func (p *Prompt) Reset() {
+	p.Blur()
 	p.SetText("")
+}
+
+func (p *Prompt) SetApp(app *App) {
+	p.app = app
 }
 
 func (p *Prompt) keyboard(evt *tcell.EventKey) *tcell.EventKey {
