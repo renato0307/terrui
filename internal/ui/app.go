@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gdamore/tcell/v2"
@@ -12,40 +13,39 @@ type App struct {
 	layout  *tview.Grid
 	content *tview.Pages
 	prompt  *Prompt
-	header  *tview.TextView
+	header  *Header
+	message *Header
 }
 
 func NewApp() *App {
-	newPrimitive := func(text string) *tview.TextView {
-		t := tview.NewTextView().
-			SetTextAlign(tview.AlignCenter).
-			SetText(text)
-
-		return t
-	}
-
-	grid := tview.NewGrid().
-		SetRows(1, 0, 1).
-		SetBorders(true)
+	app := tview.NewApplication()
+	a := &App{}
 
 	content := tview.NewPages()
-	header := newPrimitive("terrui")
+	title := NewHeader(a, "terrUI", 0)
+	message := NewHeader(a, "$ Welcome - press \":\" for commands or \"?\" for help", 3)
+
+	grid := tview.NewGrid().
+		SetRows(1, 1, 0, 1).
+		SetBorders(true)
+
 	prompt := NewPrompt(nil, grid.GetBackgroundColor())
-
-	grid.AddItem(header, 0, 0, 1, 3, 0, 0, false).
-		AddItem(prompt, 2, 0, 1, 3, 0, 0, false).
-		AddItem(content, 1, 0, 1, 3, 0, 0, false)
-
-	app := tview.NewApplication()
-	a := &App{
-		Application: app,
-		content:     content,
-		header:      header,
-		layout:      grid,
-		prompt:      prompt,
-	}
 	prompt.AddListener("app", a)
 	prompt.SetApp(a)
+
+	grid.AddItem(title, 0, 0, 1, 2, 0, 0, false).
+		AddItem(message, 1, 0, 1, 2, 0, 0, false).
+		AddItem(tview.NewTextView().SetText(" organization: - "), 0, 2, 1, 2, 0, 0, false).
+		AddItem(tview.NewTextView().SetText(" workspace: - "), 1, 2, 1, 2, 0, 0, false).
+		AddItem(content, 2, 0, 1, 4, 0, 0, false).
+		AddItem(prompt, 3, 0, 1, 4, 0, 0, false)
+
+	a.Application = app
+	a.content = content
+	a.header = title
+	a.message = message
+	a.layout = grid
+	a.prompt = prompt
 	a.SetInputCapture(a.appKeyboard)
 
 	return a
@@ -53,7 +53,6 @@ func NewApp() *App {
 
 func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 	// nolint:exhaustive
-	a.header.SetText("pressed: \"" + string(evt.Rune()) + "\"")
 	key := tcell.Key(evt.Rune())
 	switch key {
 	case KeyColon:
@@ -71,23 +70,23 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 func (a *App) Completed(text string) {
 	a.ResetFocus()
 	if text == "orgs" || text == "o" {
-		a.header.SetText("organizations")
+		a.message.ShowTitle("> organizations")
 		orgList := NewOrganizationList(a)
 		a.content.AddAndSwitchToPage("orgs", orgList, true)
 		go orgList.Load()
 		return
 	}
 
-	a.header.SetText("invalid command")
+	a.message.ShowError(fmt.Sprintf("invalid command: %s", text))
 }
 
 func (a *App) Canceled() {
-	_, frontPage := a.content.GetFrontPage()
-	a.SetFocus(frontPage)
+	a.ResetFocus()
 }
 
 func (a *App) ResetFocus() {
-	a.SetFocus(a.layout)
+	_, frontPage := a.content.GetFrontPage()
+	a.SetFocus(frontPage)
 }
 
 func (a *App) Run() error {
