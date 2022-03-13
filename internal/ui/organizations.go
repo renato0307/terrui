@@ -1,27 +1,35 @@
 package ui
 
 import (
-	"context"
-	"log"
-	"os"
+	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/hashicorp/go-tfe"
 	"github.com/rivo/tview"
+
+	"github.com/renato0307/terrui/internal/client"
 )
 
 type OrganizationList struct {
 	*tview.Table
 
-	app *App
+	app       *App
+	tfeClient *client.TFEClient
 }
 
-func NewOrganizationList(app *App) *OrganizationList {
+func NewOrganizationList(app *App) (*OrganizationList, error) {
+	tfeClient, err := client.NewTFEClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating the TFE client: %w", err)
+	}
+
 	ol := OrganizationList{
 		Table: tview.NewTable(),
-		app:   app,
+
+		app:       app,
+		tfeClient: tfeClient,
 	}
-	return &ol
+
+	return &ol, nil
 }
 
 func (ol *OrganizationList) Load() {
@@ -33,18 +41,17 @@ func (ol *OrganizationList) Load() {
 		ol.Table.SetCell(0, 0, loading.SetExpansion(1))
 	})
 
-	config := &tfe.Config{
-		Token: os.Getenv("TFE_TOKEN"),
-	}
-
-	client, err := tfe.NewClient(config)
+	orgs, err := ol.tfeClient.ListOrganizations()
 	if err != nil {
-		log.Fatal(err)
-	}
+		ol.app.message.ShowError("could not fetch organizations")
 
-	orgs, err := client.Organizations.List(context.Background(), tfe.OrganizationListOptions{})
-	if err != nil {
-		log.Fatal(err)
+		ol.app.QueueUpdateDraw(func() {
+			loading := tview.NewTableCell("😵 error loading organizations").
+				SetAlign(tview.AlignCenter).
+				SetTextColor(tcell.ColorPaleVioletRed)
+			ol.Table.SetCell(0, 0, loading.SetExpansion(1))
+		})
+		return
 	}
 
 	ol.app.QueueUpdateDraw(func() {

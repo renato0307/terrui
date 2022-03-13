@@ -71,7 +71,11 @@ func (a *App) Completed(text string) {
 	a.ResetFocus()
 	if text == "orgs" || text == "o" {
 		a.message.ShowText("> organizations")
-		orgList := NewOrganizationList(a)
+		orgList, err := NewOrganizationList(a)
+		if err != nil {
+			a.message.ShowError("could not connect to TFE")
+			return
+		}
 		a.content.AddAndSwitchToPage("orgs", orgList, true)
 		go orgList.Load()
 		return
