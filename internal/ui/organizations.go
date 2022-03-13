@@ -19,6 +19,7 @@ type OrganizationList struct {
 func NewOrganizationList(app *App) (*OrganizationList, error) {
 	tfeClient, err := client.NewTFEClient()
 	if err != nil {
+		app.message.ShowError("could not show organizations")
 		return nil, fmt.Errorf("error creating the TFE client: %w", err)
 	}
 

@@ -23,7 +23,7 @@ func NewApp() *App {
 
 	content := tview.NewPages()
 	title := NewHeader(a, "terrUI", tcell.ColorWhiteSmoke, 0)
-	message := NewHeader(a, "$ Welcome - press \":\" for commands or \"?\" for help", tcell.ColorYellow, 3)
+	message := NewHeader(a, "$ Welcome 🤓", tcell.ColorYellow, 3)
 
 	grid := tview.NewGrid().
 		SetRows(1, 1, 0, 1).
@@ -51,6 +51,10 @@ func NewApp() *App {
 	return a
 }
 
+func (a *App) Run() error {
+	return a.SetRoot(a.layout, true).SetFocus(a.layout).Run()
+}
+
 func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 	// nolint:exhaustive
 	key := tcell.Key(evt.Rune())
@@ -69,19 +73,7 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 
 func (a *App) Completed(text string) {
 	a.ResetFocus()
-	if text == "orgs" || text == "o" {
-		a.message.ShowText("> organizations")
-		orgList, err := NewOrganizationList(a)
-		if err != nil {
-			a.message.ShowError("could not connect to TFE")
-			return
-		}
-		a.content.AddAndSwitchToPage("orgs", orgList, true)
-		go orgList.Load()
-		return
-	}
-
-	a.message.ShowError(fmt.Sprintf("invalid command: %s", text))
+	a.processCommand(text)
 }
 
 func (a *App) Canceled() {
@@ -93,6 +85,21 @@ func (a *App) ResetFocus() {
 	a.SetFocus(frontPage)
 }
 
-func (a *App) Run() error {
-	return a.SetRoot(a.layout, true).SetFocus(a.layout).Run()
+func (a *App) processCommand(text string) {
+	switch text {
+	case "orgs", "o":
+		a.showOrganizationList()
+	default:
+		a.message.ShowError(fmt.Sprintf("invalid command: %s", text))
+	}
+}
+
+func (a *App) showOrganizationList() {
+	a.message.ShowText("> organizations")
+	orgList, err := NewOrganizationList(a)
+	if err != nil {
+		return
+	}
+	a.content.AddAndSwitchToPage("orgs", orgList, true)
+	go orgList.Load()
 }
