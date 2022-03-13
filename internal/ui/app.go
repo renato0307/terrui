@@ -5,26 +5,39 @@ import (
 	"os"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/renato0307/terrui/internal/config"
 	"github.com/rivo/tview"
 )
 
 type App struct {
 	*tview.Application
-	layout        *tview.Grid
-	pages         *tview.Pages
-	prompt        *Prompt
-	header        *Header
-	message       *Header
+
+	layout *tview.Grid
+	pages  *tview.Pages
+
+	header       *Header
+	message      *Header
+	workspace    *Header
+	organization *Header
+
 	supportedCmds *SupportedCommands
+	prompt        *Prompt
+
+	config *config.Config
 }
 
 func NewApp() *App {
 	app := tview.NewApplication()
 	a := &App{}
 
+	config, err := config.NewConfig()
+	if err != nil {
+		panic(err)
+	}
+
 	pages := tview.NewPages()
-	title := NewHeader(a, "terrUI", tcell.ColorWhiteSmoke, 0)
-	message := NewHeader(a, "$ Welcome 🤓", tcell.ColorYellow, 3)
+	title := NewHeader(a, "terrUI", "", tview.Styles.PrimaryTextColor, 0)
+	message := NewHeader(a, "$ Welcome 🤓", "", tcell.ColorYellow, 3)
 
 	layout := tview.NewGrid().
 		SetRows(1, 1, 0, 4, 1).
@@ -50,21 +63,29 @@ func NewApp() *App {
 	}
 	supportedCommands := NewSupportedCommands(a, scList, 3)
 
+	workspace := NewHeader(a, config.Workspace, "workspace", tview.Styles.PrimaryTextColor, 0)
+
+	organization := NewHeader(a, config.Organization, "organization", tview.Styles.PrimaryTextColor, 0)
+
 	layout.AddItem(title, 0, 0, 1, 2, 0, 0, false).
 		AddItem(message, 1, 0, 1, 2, 0, 0, false).
-		AddItem(tview.NewTextView().SetText(" organization: - "), 0, 2, 1, 2, 0, 0, false).
-		AddItem(tview.NewTextView().SetText(" workspace: - "), 1, 2, 1, 2, 0, 0, false).
+		AddItem(organization, 0, 2, 1, 2, 0, 0, false).
+		AddItem(workspace, 1, 2, 1, 2, 0, 0, false).
 		AddItem(pages, 2, 0, 1, 4, 0, 0, false).
 		AddItem(supportedCommands, 3, 0, 1, 4, 0, 0, false).
 		AddItem(prompt, 4, 0, 1, 4, 0, 0, false)
 
 	a.Application = app
-	a.pages = pages
+	a.config = config
 	a.header = title
-	a.message = message
 	a.layout = layout
-	a.supportedCmds = supportedCommands
+	a.message = message
+	a.organization = organization
+	a.pages = pages
 	a.prompt = prompt
+	a.supportedCmds = supportedCommands
+	a.workspace = workspace
+
 	a.SetInputCapture(a.appKeyboard)
 
 	return a
@@ -108,6 +129,8 @@ func (a *App) processCommand(text string) {
 	switch text {
 	case "orgs", "o":
 		a.showOrganizationList()
+	case "workspaces", "w":
+		a.showWorkspaceList()
 	default:
 		a.message.ShowError(fmt.Sprintf("invalid command: %s", text))
 	}
@@ -121,4 +144,15 @@ func (a *App) showOrganizationList() {
 	}
 	a.pages.AddAndSwitchToPage("orgs", orgList, true)
 	go orgList.Load()
+}
+
+func (a *App) showWorkspaceList() error {
+	wl, err := NewWorkspaceList(a, a.config.Organization)
+	if err != nil {
+		return err
+	}
+	a.pages.AddAndSwitchToPage("workspaces", wl, true)
+	go wl.Load()
+
+	return nil
 }

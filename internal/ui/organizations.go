@@ -37,7 +37,7 @@ func NewOrganizationList(app *App) (*OrganizationList, error) {
 func (ol *OrganizationList) Load() {
 
 	ol.app.QueueUpdateDraw(func() {
-		loading := tview.NewTableCell("loading...").
+		loading := tview.NewTableCell("loading organizations...").
 			SetAlign(tview.AlignCenter).
 			SetTextColor(tcell.ColorPaleVioletRed)
 		ol.Table.SetCell(0, 0, loading.SetExpansion(1))
@@ -95,13 +95,14 @@ func (ol *OrganizationList) keyboard(evt *tcell.EventKey) *tcell.EventKey {
 	// nolint:exhaustive
 	switch evt.Key() {
 	case tcell.KeyEnter, tcell.KeyCtrlE:
-		wl, err := NewWorkspaceList(ol.app, ol.currentOrganization)
+		ol.app.config.Organization = ol.currentOrganization
+		ol.app.config.Save()
+		ol.app.organization.ShowText(ol.currentOrganization)
+
+		err := ol.app.showWorkspaceList()
 		if err != nil {
 			return evt
 		}
-		ol.app.pages.AddAndSwitchToPage("workspaces", wl, true)
-		go wl.Load()
-
 		return nil
 	}
 

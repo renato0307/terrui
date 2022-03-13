@@ -11,24 +11,26 @@ import (
 type Header struct {
 	*tview.TextView
 
-	app           *App
-	errorColor    tcell.Color
-	errorTimeout  int
-	previousTitle string
-	titleColor    tcell.Color
+	app          *App
+	errorColor   tcell.Color
+	errorTimeout int
+	previousText string
+	titleColor   tcell.Color
+	labelText    string
 }
 
-func NewHeader(app *App, initialText string, color tcell.Color, errorTimeout int) *Header {
+func NewHeader(app *App, initialText, labelText string, color tcell.Color, errorTimeout int) *Header {
 	h := Header{
 		TextView: tview.NewTextView(),
 
-		app:           app,
-		errorColor:    tcell.ColorOrangeRed,
-		errorTimeout:  errorTimeout,
-		previousTitle: initialText,
-		titleColor:    color,
+		app:          app,
+		errorColor:   tcell.ColorOrangeRed,
+		errorTimeout: errorTimeout,
+		previousText: initialText,
+		labelText:    labelText,
+		titleColor:   color,
 	}
-	h.SetText(initialText)
+	h.setTextWithLabel(initialText)
 	h.SetBorderPadding(0, 0, 1, 0)
 	h.SetTextColor(h.titleColor)
 
@@ -37,9 +39,9 @@ func NewHeader(app *App, initialText string, color tcell.Color, errorTimeout int
 
 func (h *Header) ShowText(text string) {
 	go h.app.QueueUpdateDraw(func() {
-		h.previousTitle = text
+		h.previousText = text
 		h.SetTextColor(h.titleColor)
-		h.SetText(text)
+		h.setTextWithLabel(text)
 	})
 }
 
@@ -50,6 +52,17 @@ func (h *Header) ShowError(text string) {
 	})
 	go func() {
 		time.Sleep(time.Duration(h.errorTimeout) * time.Second)
-		h.ShowText(h.previousTitle)
+		h.ShowText(h.previousText)
 	}()
+}
+
+func (h *Header) setTextWithLabel(text string) {
+	if h.labelText != "" {
+		if text == "" {
+			text = "-"
+		}
+		h.SetText(fmt.Sprintf("%s: %s", h.labelText, text))
+	} else {
+		h.SetText(text)
+	}
 }

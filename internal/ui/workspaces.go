@@ -41,7 +41,7 @@ func (wl *WorkspaceList) Load() {
 
 	wl.app.QueueUpdateDraw(func() {
 		wl.app.message.ShowText("> workspaces")
-		loading := tview.NewTableCell("loading...").
+		loading := tview.NewTableCell("loading workspaces...").
 			SetAlign(tview.AlignCenter).
 			SetTextColor(tcell.ColorPaleVioletRed)
 		wl.Table.SetCell(0, 0, loading.SetExpansion(1))
