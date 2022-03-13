@@ -30,6 +30,10 @@ func NewSupportedCommands(app *App, initialList []SupportedCommand, perLine int)
 }
 
 func (sc *SupportedCommands) SetCommands(list []SupportedCommand) {
+	// TODO: improve layout and coloring
+	// Align the shortcuts
+	// Use different color for the shortcuts
+
 	sc.Grid = tview.NewGrid()
 
 	sc.SetRows(1, 0).SetBorders(false)
@@ -39,7 +43,7 @@ func (sc *SupportedCommands) SetCommands(list []SupportedCommand) {
 	table.SetSelectable(false, false)
 	table.SetBorder(false)
 	for i, c := range list {
-		cmdText := fmt.Sprintf("(%s) %s", c.ShortCut, c.Name)
+		cmdText := fmt.Sprintf("<%s> %s", c.ShortCut, c.Name)
 		table.SetCell(i%sc.perLine, i/sc.perLine, tview.NewTableCell(cmdText).SetExpansion(1))
 	}
 
