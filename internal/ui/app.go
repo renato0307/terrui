@@ -10,11 +10,12 @@ import (
 
 type App struct {
 	*tview.Application
-	layout  *tview.Grid
-	content *tview.Pages
-	prompt  *Prompt
-	header  *Header
-	message *Header
+	layout        *tview.Grid
+	content       *tview.Pages
+	prompt        *Prompt
+	header        *Header
+	message       *Header
+	supportedCmds *SupportedCommands
 }
 
 func NewApp() *App {
@@ -25,26 +26,44 @@ func NewApp() *App {
 	title := NewHeader(a, "terrUI", tcell.ColorWhiteSmoke, 0)
 	message := NewHeader(a, "$ Welcome 🤓", tcell.ColorYellow, 3)
 
-	grid := tview.NewGrid().
-		SetRows(1, 1, 0, 1).
+	layout := tview.NewGrid().
+		SetRows(1, 1, 0, 4, 1).
 		SetBorders(true)
 
-	prompt := NewPrompt(nil, grid.GetBackgroundColor())
+	prompt := NewPrompt(nil, layout.GetBackgroundColor())
 	prompt.AddListener("app", a)
 	prompt.SetApp(a)
 
-	grid.AddItem(title, 0, 0, 1, 2, 0, 0, false).
+	scList := []SupportedCommand{
+		{
+			ShortCut: "esc",
+			Name:     "go back",
+		},
+		{
+			ShortCut: "ctrl+c",
+			Name:     "quit",
+		},
+		{
+			ShortCut: "?",
+			Name:     "show help",
+		},
+	}
+	supportedCommands := NewSupportedCommands(a, scList, 3)
+
+	layout.AddItem(title, 0, 0, 1, 2, 0, 0, false).
 		AddItem(message, 1, 0, 1, 2, 0, 0, false).
 		AddItem(tview.NewTextView().SetText(" organization: - "), 0, 2, 1, 2, 0, 0, false).
 		AddItem(tview.NewTextView().SetText(" workspace: - "), 1, 2, 1, 2, 0, 0, false).
 		AddItem(content, 2, 0, 1, 4, 0, 0, false).
-		AddItem(prompt, 3, 0, 1, 4, 0, 0, false)
+		AddItem(supportedCommands, 3, 0, 1, 4, 0, 0, false).
+		AddItem(prompt, 4, 0, 1, 4, 0, 0, false)
 
 	a.Application = app
 	a.content = content
 	a.header = title
 	a.message = message
-	a.layout = grid
+	a.layout = layout
+	a.supportedCmds = supportedCommands
 	a.prompt = prompt
 	a.SetInputCapture(a.appKeyboard)
 

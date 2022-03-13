@@ -40,6 +40,19 @@ func (ol *OrganizationList) Load() {
 			SetAlign(tview.AlignCenter).
 			SetTextColor(tcell.ColorPaleVioletRed)
 		ol.Table.SetCell(0, 0, loading.SetExpansion(1))
+
+		ol.app.supportedCmds.SetCommands(
+			[]SupportedCommand{
+				{
+					ShortCut: "d",
+					Name:     "show details",
+				},
+				{
+					ShortCut: "enter",
+					Name:     "select organization",
+				},
+			},
+		)
 	})
 
 	orgs, err := ol.tfeClient.ListOrganizations()
