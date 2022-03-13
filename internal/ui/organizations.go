@@ -12,8 +12,9 @@ import (
 type OrganizationList struct {
 	*tview.Table
 
-	app       *App
-	tfeClient *client.TFEClient
+	app                 *App
+	tfeClient           *client.TFEClient
+	currentOrganization string
 }
 
 func NewOrganizationList(app *App) (*OrganizationList, error) {
@@ -43,10 +44,10 @@ func (ol *OrganizationList) Load() {
 
 		ol.app.supportedCmds.SetCommands(
 			[]SupportedCommand{
-				{
-					ShortCut: "d",
-					Name:     "show details",
-				},
+				// {
+				// 	ShortCut: "d",
+				// 	Name:     "show details",
+				// },
 				{
 					ShortCut: "enter",
 					Name:     "select organization",
@@ -79,6 +80,11 @@ func (ol *OrganizationList) Load() {
 			ol.Table.SetCell(r, 1, tview.NewTableCell(o.Name).SetExpansion(1))
 			ol.Table.SetCell(r, 2, tview.NewTableCell(o.Email).SetExpansion(2))
 		}
+
+		ol.SetSelectionChangedFunc(func(row, column int) {
+			ol.currentOrganization = ol.Table.GetCell(row, 1).Text
+		})
+
 	})
 
 	ol.app.SetFocus(ol)
@@ -86,5 +92,18 @@ func (ol *OrganizationList) Load() {
 }
 
 func (ol *OrganizationList) keyboard(evt *tcell.EventKey) *tcell.EventKey {
+	// nolint:exhaustive
+	switch evt.Key() {
+	case tcell.KeyEnter, tcell.KeyCtrlE:
+		wl, err := NewWorkspaceList(ol.app, ol.currentOrganization)
+		if err != nil {
+			return evt
+		}
+		ol.app.pages.AddAndSwitchToPage("workspaces", wl, true)
+		go wl.Load()
+
+		return nil
+	}
+
 	return evt
 }

@@ -29,3 +29,11 @@ func NewTFEClient() (*TFEClient, error) {
 func (c *TFEClient) ListOrganizations() (*tfe.OrganizationList, error) {
 	return c.client.Organizations.List(context.Background(), tfe.OrganizationListOptions{})
 }
+
+func (c *TFEClient) ListWorkspaces(org string) (*tfe.WorkspaceList, error) {
+	includes := "current_run"
+	return c.client.Workspaces.List(context.Background(), org, tfe.WorkspaceListOptions{
+		Include:     &includes,
+		ListOptions: tfe.ListOptions{PageSize: 30},
+	})
+}

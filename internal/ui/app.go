@@ -11,7 +11,7 @@ import (
 type App struct {
 	*tview.Application
 	layout        *tview.Grid
-	content       *tview.Pages
+	pages         *tview.Pages
 	prompt        *Prompt
 	header        *Header
 	message       *Header
@@ -22,7 +22,7 @@ func NewApp() *App {
 	app := tview.NewApplication()
 	a := &App{}
 
-	content := tview.NewPages()
+	pages := tview.NewPages()
 	title := NewHeader(a, "terrUI", tcell.ColorWhiteSmoke, 0)
 	message := NewHeader(a, "$ Welcome 🤓", tcell.ColorYellow, 3)
 
@@ -35,18 +35,18 @@ func NewApp() *App {
 	prompt.SetApp(a)
 
 	scList := []SupportedCommand{
-		{
-			ShortCut: "esc",
-			Name:     "go back",
-		},
+		// {
+		// 	ShortCut: "esc",
+		// 	Name:     "go back",
+		// },
 		{
 			ShortCut: "ctrl+c",
 			Name:     "quit",
 		},
-		{
-			ShortCut: "?",
-			Name:     "show help",
-		},
+		// {
+		// 	ShortCut: "?",
+		// 	Name:     "show help",
+		// },
 	}
 	supportedCommands := NewSupportedCommands(a, scList, 3)
 
@@ -54,12 +54,12 @@ func NewApp() *App {
 		AddItem(message, 1, 0, 1, 2, 0, 0, false).
 		AddItem(tview.NewTextView().SetText(" organization: - "), 0, 2, 1, 2, 0, 0, false).
 		AddItem(tview.NewTextView().SetText(" workspace: - "), 1, 2, 1, 2, 0, 0, false).
-		AddItem(content, 2, 0, 1, 4, 0, 0, false).
+		AddItem(pages, 2, 0, 1, 4, 0, 0, false).
 		AddItem(supportedCommands, 3, 0, 1, 4, 0, 0, false).
 		AddItem(prompt, 4, 0, 1, 4, 0, 0, false)
 
 	a.Application = app
-	a.content = content
+	a.pages = pages
 	a.header = title
 	a.message = message
 	a.layout = layout
@@ -100,7 +100,7 @@ func (a *App) Canceled() {
 }
 
 func (a *App) ResetFocus() {
-	_, frontPage := a.content.GetFrontPage()
+	_, frontPage := a.pages.GetFrontPage()
 	a.SetFocus(frontPage)
 }
 
@@ -119,6 +119,6 @@ func (a *App) showOrganizationList() {
 	if err != nil {
 		return
 	}
-	a.content.AddAndSwitchToPage("orgs", orgList, true)
+	a.pages.AddAndSwitchToPage("orgs", orgList, true)
 	go orgList.Load()
 }
