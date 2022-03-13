@@ -22,8 +22,8 @@ func NewApp() *App {
 	a := &App{}
 
 	content := tview.NewPages()
-	title := NewHeader(a, "terrUI", 0)
-	message := NewHeader(a, "$ Welcome - press \":\" for commands or \"?\" for help", 3)
+	title := NewHeader(a, "terrUI", tcell.ColorWhiteSmoke, 0)
+	message := NewHeader(a, "$ Welcome - press \":\" for commands or \"?\" for help", tcell.ColorYellow, 3)
 
 	grid := tview.NewGrid().
 		SetRows(1, 1, 0, 1).
@@ -70,7 +70,7 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 func (a *App) Completed(text string) {
 	a.ResetFocus()
 	if text == "orgs" || text == "o" {
-		a.message.ShowTitle("> organizations")
+		a.message.ShowText("> organizations")
 		orgList := NewOrganizationList(a)
 		a.content.AddAndSwitchToPage("orgs", orgList, true)
 		go orgList.Load()

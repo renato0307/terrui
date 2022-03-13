@@ -18,7 +18,7 @@ type Header struct {
 	titleColor    tcell.Color
 }
 
-func NewHeader(app *App, initialText string, errorTimeout int) *Header {
+func NewHeader(app *App, initialText string, color tcell.Color, errorTimeout int) *Header {
 	h := Header{
 		TextView: tview.NewTextView(),
 
@@ -26,15 +26,16 @@ func NewHeader(app *App, initialText string, errorTimeout int) *Header {
 		errorColor:    tcell.ColorOrangeRed,
 		errorTimeout:  errorTimeout,
 		previousTitle: initialText,
-		titleColor:    tcell.ColorWhiteSmoke,
+		titleColor:    color,
 	}
 	h.SetText(initialText)
 	h.SetBorderPadding(0, 0, 1, 0)
+	h.SetTextColor(h.titleColor)
 
 	return &h
 }
 
-func (h *Header) ShowTitle(text string) {
+func (h *Header) ShowText(text string) {
 	go h.app.QueueUpdateDraw(func() {
 		h.previousTitle = text
 		h.SetTextColor(h.titleColor)
@@ -49,6 +50,6 @@ func (h *Header) ShowError(text string) {
 	})
 	go func() {
 		time.Sleep(time.Duration(h.errorTimeout) * time.Second)
-		h.ShowTitle(h.previousTitle)
+		h.ShowText(h.previousTitle)
 	}()
 }
