@@ -14,7 +14,7 @@ type OrganizationList struct {
 
 	app                 *App
 	tfeClient           *client.TFEClient
-	currentOrganization string
+	currentOrganization int
 }
 
 func NewOrganizationList(app *App) (*OrganizationList, error) {
@@ -27,8 +27,9 @@ func NewOrganizationList(app *App) (*OrganizationList, error) {
 	ol := OrganizationList{
 		Table: tview.NewTable(),
 
-		app:       app,
-		tfeClient: tfeClient,
+		app:                 app,
+		tfeClient:           tfeClient,
+		currentOrganization: 1,
 	}
 
 	return &ol, nil
@@ -82,7 +83,7 @@ func (ol *OrganizationList) Load() {
 		}
 
 		ol.SetSelectionChangedFunc(func(row, column int) {
-			ol.currentOrganization = ol.Table.GetCell(row, 1).Text
+			ol.currentOrganization = row + 1
 		})
 
 	})
@@ -95,9 +96,10 @@ func (ol *OrganizationList) keyboard(evt *tcell.EventKey) *tcell.EventKey {
 	// nolint:exhaustive
 	switch evt.Key() {
 	case tcell.KeyEnter, tcell.KeyCtrlE:
-		ol.app.config.Organization = ol.currentOrganization
+		org := ol.Table.GetCell(ol.currentOrganization, 1).Text
+		ol.app.config.Organization = org
 		ol.app.config.Save()
-		ol.app.organization.ShowText(ol.currentOrganization)
+		ol.app.organization.ShowText(org)
 
 		err := ol.app.showWorkspaceList()
 		if err != nil {

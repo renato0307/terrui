@@ -37,3 +37,22 @@ func (c *TFEClient) ListWorkspaces(org string) (*tfe.WorkspaceList, error) {
 		ListOptions: tfe.ListOptions{PageSize: 30},
 	})
 }
+
+func (c *TFEClient) ReadWorkspace(org, workspace string) (*tfe.Workspace, error) {
+	w, err := c.client.Workspaces.ReadWithOptions(context.Background(), org, workspace, &tfe.WorkspaceReadOptions{
+		Include: "current_run,current_run.plan,locked_by",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := c.client.Runs.ReadWithOptions(context.Background(), w.CurrentRun.ID, &tfe.RunReadOptions{
+		Include: "created_by,plan,apply",
+	})
+	if err != nil {
+		return nil, err
+	}
+	w.CurrentRun = r
+
+	return w, err
+}

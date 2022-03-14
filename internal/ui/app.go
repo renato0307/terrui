@@ -156,3 +156,14 @@ func (a *App) showWorkspaceList() error {
 
 	return nil
 }
+
+func (a *App) showWorkspace() error {
+	w, err := NewWorkspace(a)
+	if err != nil {
+		return err
+	}
+	a.pages.AddAndSwitchToPage("workspace", w, true)
+	go w.Load()
+
+	return nil
+}
