@@ -10,9 +10,14 @@ about tview and how to do proper TUIs - expect some tech debt.
 
 1. Navigation
 1. Make TFE client an interface
-1. Unit tests
-1. Comment code
 
 ## Features
 
 1. ?
+
+## CI/CD & Quality
+
+1. README badges
+1. Release pipeline
+1. Unit tests
+1. Comment code
