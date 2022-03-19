@@ -56,10 +56,10 @@ func NewApp() *App {
 			ShortCut: "ctrl+c",
 			Name:     "quit",
 		},
-		// {
-		// 	ShortCut: "?",
-		// 	Name:     "show help",
-		// },
+		{
+			ShortCut: "?",
+			Name:     "show help (works in all screens)",
+		},
 	}
 	supportedCommands := NewSupportedCommands(a, scList, 3)
 
@@ -92,6 +92,10 @@ func NewApp() *App {
 }
 
 func (a *App) Run() error {
+	if a.config.Organization != "" && a.config.Workspace != "" {
+		a.showWorkspace()
+	}
+
 	return a.SetRoot(a.layout, true).SetFocus(a.layout).Run()
 }
 

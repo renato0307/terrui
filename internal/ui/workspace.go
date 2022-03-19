@@ -70,6 +70,22 @@ func (w *Workspace) Load() {
 					ShortCut: "esc",
 					Name:     "workspace list",
 				},
+				{
+					ShortCut: "e",
+					Name:     "edit details",
+				},
+				{
+					ShortCut: "p",
+					Name:     "start a new plan",
+				},
+				{
+					ShortCut: "v",
+					Name:     "manage variables",
+				},
+				{
+					ShortCut: "s",
+					Name:     "show state",
+				},
 			},
 		)
 	})
@@ -115,29 +131,32 @@ func (w *Workspace) Load() {
 	w.app.QueueUpdateDraw(func() {
 		t1.SetBorder(true)
 		t1.SetBorderPadding(0, 1, 1, 1)
-		t1.SetTitle("details")
+		t1.SetTitle(" details ")
 		t1.SetText(colorizeYAML(string(yamlBaseData)))
 		t1.SetDynamicColors(true)
 
 		t2.SetBorder(true)
 		t2.SetBorderPadding(0, 1, 1, 1)
-		t2.SetTitle("last run")
+		t2.SetTitle(" last run ")
 		t2.SetText(colorizeYAML(string(yamlLastRunData)))
 		t2.SetDynamicColors(true)
 
 		t3.SetBorder(true)
 		t3.SetBorderPadding(0, 1, 1, 1)
-		t3.SetTitle("variables")
+		t3.SetMainTextStyle(tcell.StyleDefault.Bold(true))
+		t3.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
+		t3.SetHighlightFullLine(true)
+		t3.SetWrapAround(true)
 
 		flex := tview.NewFlex().
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 				AddItem(t1, 0, 1, false).
 				AddItem(t2, 0, 1, false), 0, 1, false).
-			AddItem(t3, 0, 1, false)
+			AddItem(t3, 0, 2, false)
+		flex.SetBorder(false)
 
 		w.Flex = flex
 	})
-
 	go w.loadVariables(workspace.ID, t3)
 
 	w.app.SetFocus(w)
@@ -156,7 +175,7 @@ func (w *Workspace) keyboard(evt *tcell.EventKey) *tcell.EventKey {
 
 func (w *Workspace) loadVariables(workspaceID string, list *tview.List) {
 	w.app.QueueUpdateDraw(func() {
-		list.SetTitle("loading variables...").
+		list.SetTitle(" loading variables... ").
 			SetTitleColor(tcell.ColorPaleVioletRed)
 	})
 
@@ -164,37 +183,42 @@ func (w *Workspace) loadVariables(workspaceID string, list *tview.List) {
 	if err != nil {
 		w.app.message.ShowError("could not fetch variables")
 		w.app.QueueUpdateDraw(func() {
-			list.SetTitle("😵 error loading variables: " + err.Error()).
+			list.SetTitle(fmt.Sprintf(" 😵 error loading variables: %s ", err.Error())).
 				SetTitleColor(tcell.ColorPaleVioletRed)
 		})
 		return
 	}
 
 	w.app.QueueUpdateDraw(func() {
-		list.SetTitle("variables").
+		list.SetTitle(fmt.Sprintf(" variables (%d) ", len(vars.Items))).
 			SetTitleColor(tview.Styles.PrimaryTextColor)
 	})
 
 	w.app.QueueUpdateDraw(func() {
-		shortcut := 0
-		firstShortcut := int('a')
-		for i, v := range vars.Items {
-			if firstShortcut != -1 {
-				shortcut = firstShortcut + i
-			} else {
-				shortcut = 0
-			}
-
+		shortcut := int('a')
+		for _, v := range vars.Items {
 			value := v.Value
 			if v.Sensitive {
 				value = "******"
 			}
-			list.AddItem(v.Key, value, rune(shortcut), nil)
+			mainText := fmt.Sprintf("%s = %s", v.Key, value)
+			secondaryText := fmt.Sprintf("%s", v.Category)
+			if v.Sensitive {
+				secondaryText += ", sensitive"
+			}
+
+			list.AddItem(mainText, secondaryText, rune(shortcut), nil)
 
 			if shortcut == 'z' {
-				firstShortcut = '0'
+				shortcut = 'A' - 1
+			} else if shortcut == 'Z' {
+				shortcut = '0' - 1
 			} else if shortcut == '9' {
-				firstShortcut = -1
+				shortcut = 0
+			}
+
+			if shortcut != 0 {
+				shortcut = shortcut + 1
 			}
 		}
 	})
