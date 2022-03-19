@@ -11,9 +11,17 @@ about tview and how to do proper TUIs - expect some tech debt.
 1. Navigation
 1. Make TFE client an interface
 
-## Features
+## New features
 
-1. ?
+1. Search workspaces
+1. Inspect state
+1. List workspace runs
+
+## Improvements
+
+1. Support pagination on organization
+1. Support pagination on workspaces
+1. Support pagination on workspace variables
 
 ## CI/CD & Quality
 
