@@ -41,6 +41,12 @@ type workspaceLastRun struct {
 	ResourcesDeleted int    `yaml:"Resources Deleted"`
 }
 
+type workspaceMetrics struct {
+	ApplyDurationAverage string `yaml:"Average Apply Duration"`
+	PlanDurationAverage  string `yaml:"Average Plan Duration"`
+	RunFailures          int    `yaml:"Total Failed Runs"`
+}
+
 func NewWorkspace(app *App) (*Workspace, error) {
 	tfeClient, err := client.NewTFEClient()
 	if err != nil {
@@ -97,6 +103,10 @@ func (w *Workspace) Load() {
 					ShortCut: "v",
 					Name:     "manage variables",
 				},
+				{
+					ShortCut: "t",
+					Name:     "manage tags",
+				},
 			},
 		)
 	})
@@ -135,43 +145,80 @@ func (w *Workspace) Load() {
 		ResourcesDeleted: workspace.CurrentRun.Plan.ResourceDestructions,
 	}
 
+	workspaceMetrics := workspaceMetrics{
+		ApplyDurationAverage: workspace.ApplyDurationAverage.String(),
+		PlanDurationAverage:  workspace.PlanDurationAverage.String(),
+		RunFailures:          workspace.RunFailures,
+	}
+
 	yamlBaseData, _ := yaml.Marshal(workspaceBase)
 	yamlLastRunData, _ := yaml.Marshal(workspaceLastRun)
+	yamlMetrics, _ := yaml.Marshal(workspaceMetrics)
 
-	t1 := tview.NewTextView()
-	t2 := tview.NewTextView()
-	t3 := tview.NewList()
+	details := tview.NewTextView()
+	metrics := tview.NewTextView()
+	tags := tview.NewList()
+	lastRun := tview.NewTextView()
+	variables := tview.NewList()
 
 	w.app.QueueUpdateDraw(func() {
-		t1.SetBorder(true)
-		t1.SetBorderPadding(0, 1, 1, 1)
-		t1.SetTitle(" details ")
-		t1.SetText(colorizeYAML(string(yamlBaseData)))
-		t1.SetDynamicColors(true)
+		details.SetBorder(true)
+		details.SetBorderPadding(0, 1, 1, 1)
+		details.SetTitle(" details ")
+		details.SetText(colorizeYAML(string(yamlBaseData)))
+		details.SetDynamicColors(true)
 
-		t2.SetBorder(true)
-		t2.SetBorderPadding(0, 1, 1, 1)
-		t2.SetTitle(" last run ")
-		t2.SetText(colorizeYAML(string(yamlLastRunData)))
-		t2.SetDynamicColors(true)
+		metrics.SetBorder(true)
+		metrics.SetBorderPadding(0, 1, 1, 1)
+		metrics.SetTitle(fmt.Sprintf(" metrics (last %d runs) ", workspace.RunsCount))
+		metrics.SetText(colorizeYAML(string(yamlMetrics)))
+		metrics.SetDynamicColors(true)
 
-		t3.SetBorder(true)
-		t3.SetBorderPadding(0, 1, 1, 1)
-		t3.SetMainTextStyle(tcell.StyleDefault.Bold(true))
-		t3.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
-		t3.SetHighlightFullLine(true)
-		t3.SetWrapAround(true)
+		tags.SetBorder(true)
+		tags.SetBorderPadding(0, 1, 1, 1)
+		tags.SetTitle(" tags ")
+		tags.SetMainTextStyle(tcell.StyleDefault.Bold(true))
+		tags.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
+		tags.SetWrapAround(true)
+		tags.SetSelectedStyle(tcell.StyleDefault.Foreground(tview.Styles.PrimaryTextColor).Background(tview.Styles.PrimitiveBackgroundColor))
+		tags.ShowSecondaryText(false)
+		for _, t := range workspace.TagNames {
+			tags.AddItem(t, "", 0, nil)
+		}
+
+		lastRun.SetBorder(true)
+		lastRun.SetBorderPadding(0, 1, 1, 1)
+		lastRun.SetTitle(" last run ")
+		lastRun.SetText(colorizeYAML(string(yamlLastRunData)))
+		lastRun.SetDynamicColors(true)
+
+		variables.SetBorder(true)
+		variables.SetBorderPadding(0, 1, 1, 1)
+		variables.SetMainTextStyle(tcell.StyleDefault.Bold(true))
+		variables.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
+		variables.SetHighlightFullLine(true)
+		variables.SetWrapAround(true)
 
 		flex := tview.NewFlex().
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(t1, 0, 1, false).
-				AddItem(t2, 0, 1, false), 0, 1, false).
-			AddItem(t3, 0, 2, false)
-		flex.SetBorder(false)
+				AddItem(details, 0, 3, false).
+				AddItem(lastRun, 0, 1, false).
+				AddItem(metrics, 0, 1, false).
+				AddItem(tags, 0, 1, false), 0, 1, false)
+
+		if w.app.config.WorkspaceShowVariables {
+			flex.AddItem(variables, 0, 2, false)
+		}
+
+		flex.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+			details.ScrollToBeginning()
+			lastRun.ScrollToBeginning()
+			return x, y, width, height
+		})
 
 		w.Flex = flex
 	})
-	go w.loadVariables(workspace.ID, t3, true)
+	go w.loadVariables(workspace.ID, variables, true)
 
 	w.app.SetFocus(w)
 	w.SetInputCapture(w.keyboard)

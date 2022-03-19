@@ -9,15 +9,18 @@ import (
 )
 
 type Config struct {
-	Organization string `json:"organization"`
-	Workspace    string `json:"workspace"`
+	Organization           string `json:"organization"`
+	Workspace              string `json:"workspace"`
+	WorkspaceShowVariables bool   `json:"workspace_show_vars"`
 }
 
 const configDirectory = ".config/terrui"
 const configFile = "terrui.json"
 
 func NewConfig() (*Config, error) {
-	c := &Config{}
+	c := &Config{
+		WorkspaceShowVariables: true,
+	}
 	err := c.Load()
 
 	if errors.Is(err, os.ErrNotExist) {
