@@ -48,7 +48,7 @@ func (wl *WorkspaceList) Load() {
 		wl.Table.SetCell(0, 0, loading.SetExpansion(1))
 
 		wl.SetSelectionChangedFunc(func(row, column int) {
-			wl.currentWorkspace = row + 1
+			wl.currentWorkspace = row
 		})
 
 		wl.app.supportedCmds.SetCommands(
@@ -112,10 +112,10 @@ func (wl *WorkspaceList) keyboard(evt *tcell.EventKey) *tcell.EventKey {
 		wl.app.config.Save()
 		wl.app.workspace.ShowText(workspace)
 
-		wl.app.showWorkspace()
-		//if err != nil {
-		//	return evt
-		//}
+		err := wl.app.showWorkspace()
+		if err != nil {
+			return evt
+		}
 		return nil
 	}
 

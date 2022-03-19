@@ -56,3 +56,7 @@ func (c *TFEClient) ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 
 	return w, err
 }
+
+func (c *TFEClient) ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error) {
+	return c.client.Variables.List(context.Background(), workspaceID, tfe.VariableListOptions{})
+}

@@ -26,6 +26,7 @@ type workspaceBaseInfo struct {
 	Resources        int    `yaml:"Resource Count"`
 	TerraformVersion string `yaml:"Terraform Version"`
 	Updated          string `yaml:"Updated"`
+	Locked           bool   `yaml:"Locked"`
 }
 
 type workspaceLastRun struct {
@@ -69,10 +70,6 @@ func (w *Workspace) Load() {
 					ShortCut: "esc",
 					Name:     "workspace list",
 				},
-				{
-					ShortCut: "v",
-					Name:     "variables",
-				},
 			},
 		)
 	})
@@ -96,6 +93,7 @@ func (w *Workspace) Load() {
 		TerraformVersion: workspace.TerraformVersion,
 		Resources:        workspace.ResourceCount,
 		Updated:          workspace.UpdatedAt.Local().Format(time.RFC3339),
+		Locked:           workspace.Locked,
 	}
 
 	workspaceLastRun := workspaceLastRun{
@@ -110,29 +108,37 @@ func (w *Workspace) Load() {
 	yamlBaseData, _ := yaml.Marshal(workspaceBase)
 	yamlLastRunData, _ := yaml.Marshal(workspaceLastRun)
 
+	t1 := tview.NewTextView()
+	t2 := tview.NewTextView()
+	t3 := tview.NewList()
+
 	w.app.QueueUpdateDraw(func() {
-		t1 := tview.NewTextView()
 		t1.SetBorder(true)
 		t1.SetBorderPadding(0, 1, 1, 1)
 		t1.SetTitle("details")
 		t1.SetText(colorizeYAML(string(yamlBaseData)))
 		t1.SetDynamicColors(true)
 
-		t2 := tview.NewTextView()
 		t2.SetBorder(true)
 		t2.SetBorderPadding(0, 1, 1, 1)
 		t2.SetTitle("last run")
 		t2.SetText(colorizeYAML(string(yamlLastRunData)))
 		t2.SetDynamicColors(true)
 
+		t3.SetBorder(true)
+		t3.SetBorderPadding(0, 1, 1, 1)
+		t3.SetTitle("variables")
+
 		flex := tview.NewFlex().
-			AddItem(t1, 0, 1, false).
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(t2, 0, 1, false).
-				AddItem(nil, 0, 1, false), 0, 1, false)
+				AddItem(t1, 0, 1, false).
+				AddItem(t2, 0, 1, false), 0, 1, false).
+			AddItem(t3, 0, 1, false)
 
 		w.Flex = flex
 	})
+
+	go w.loadVariables(workspace.ID, t3)
 
 	w.app.SetFocus(w)
 	w.SetInputCapture(w.keyboard)
@@ -146,4 +152,52 @@ func (w *Workspace) keyboard(evt *tcell.EventKey) *tcell.EventKey {
 	}
 
 	return evt
+}
+
+func (w *Workspace) loadVariables(workspaceID string, list *tview.List) {
+	w.app.QueueUpdateDraw(func() {
+		list.SetTitle("loading variables...").
+			SetTitleColor(tcell.ColorPaleVioletRed)
+	})
+
+	vars, err := w.tfeClient.ListWorkspaceVariables(workspaceID)
+	if err != nil {
+		w.app.message.ShowError("could not fetch variables")
+		w.app.QueueUpdateDraw(func() {
+			list.SetTitle("😵 error loading variables: " + err.Error()).
+				SetTitleColor(tcell.ColorPaleVioletRed)
+		})
+		return
+	}
+
+	w.app.QueueUpdateDraw(func() {
+		list.SetTitle("variables").
+			SetTitleColor(tview.Styles.PrimaryTextColor)
+	})
+
+	w.app.QueueUpdateDraw(func() {
+		shortcut := 0
+		firstShortcut := int('a')
+		for i, v := range vars.Items {
+			if firstShortcut != -1 {
+				shortcut = firstShortcut + i
+			} else {
+				shortcut = 0
+			}
+
+			value := v.Value
+			if v.Sensitive {
+				value = "******"
+			}
+			list.AddItem(v.Key, value, rune(shortcut), nil)
+
+			if shortcut == 'z' {
+				firstShortcut = '0'
+			} else if shortcut == '9' {
+				firstShortcut = -1
+			}
+		}
+	})
+
+	w.app.SetFocus(list)
 }
