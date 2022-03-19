@@ -27,6 +27,9 @@ type workspaceBaseInfo struct {
 	TerraformVersion string `yaml:"Terraform Version"`
 	Updated          string `yaml:"Updated"`
 	Locked           bool   `yaml:"Locked"`
+	WorkingDirectory string `yaml:"Working Directory"`
+	ExecutionMode    string `yaml:"Execution Mode"`
+	AutoApply        bool   `yaml:"Auto Apply"`
 }
 
 type workspaceLastRun struct {
@@ -67,6 +70,14 @@ func (w *Workspace) Load() {
 		w.app.supportedCmds.SetCommands(
 			[]SupportedCommand{
 				{
+					ShortCut: "?",
+					Name:     "help",
+				},
+				{
+					ShortCut: ":",
+					Name:     "execute commands",
+				},
+				{
 					ShortCut: "esc",
 					Name:     "workspace list",
 				},
@@ -79,12 +90,12 @@ func (w *Workspace) Load() {
 					Name:     "start a new plan",
 				},
 				{
-					ShortCut: "v",
-					Name:     "manage variables",
-				},
-				{
 					ShortCut: "s",
 					Name:     "show state",
+				},
+				{
+					ShortCut: "v",
+					Name:     "manage variables",
 				},
 			},
 		)
@@ -110,6 +121,9 @@ func (w *Workspace) Load() {
 		Resources:        workspace.ResourceCount,
 		Updated:          workspace.UpdatedAt.Local().Format(time.RFC3339),
 		Locked:           workspace.Locked,
+		WorkingDirectory: workspace.WorkingDirectory,
+		ExecutionMode:    workspace.ExecutionMode,
+		AutoApply:        workspace.AutoApply,
 	}
 
 	workspaceLastRun := workspaceLastRun{
@@ -157,7 +171,7 @@ func (w *Workspace) Load() {
 
 		w.Flex = flex
 	})
-	go w.loadVariables(workspace.ID, t3)
+	go w.loadVariables(workspace.ID, t3, true)
 
 	w.app.SetFocus(w)
 	w.SetInputCapture(w.keyboard)
@@ -173,7 +187,7 @@ func (w *Workspace) keyboard(evt *tcell.EventKey) *tcell.EventKey {
 	return evt
 }
 
-func (w *Workspace) loadVariables(workspaceID string, list *tview.List) {
+func (w *Workspace) loadVariables(workspaceID string, list *tview.List, showShortcuts bool) {
 	w.app.QueueUpdateDraw(func() {
 		list.SetTitle(" loading variables... ").
 			SetTitleColor(tcell.ColorPaleVioletRed)
@@ -195,7 +209,7 @@ func (w *Workspace) loadVariables(workspaceID string, list *tview.List) {
 	})
 
 	w.app.QueueUpdateDraw(func() {
-		shortcut := int('a')
+		shortcut := int('0')
 		for _, v := range vars.Items {
 			value := v.Value
 			if v.Sensitive {
@@ -207,17 +221,18 @@ func (w *Workspace) loadVariables(workspaceID string, list *tview.List) {
 				secondaryText += ", sensitive"
 			}
 
-			list.AddItem(mainText, secondaryText, rune(shortcut), nil)
-
-			if shortcut == 'z' {
-				shortcut = 'A' - 1
-			} else if shortcut == 'Z' {
-				shortcut = '0' - 1
-			} else if shortcut == '9' {
+			if !showShortcuts {
 				shortcut = 0
 			}
+			list.AddItem(mainText, secondaryText, rune(shortcut), nil)
 
-			if shortcut != 0 {
+			if shortcut == '9' {
+				shortcut = 'A' - 1
+			} else if shortcut == 'Z' {
+				shortcut = '.'
+			}
+
+			if shortcut != '.' {
 				shortcut = shortcut + 1
 			}
 		}
