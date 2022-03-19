@@ -21,3 +21,4 @@ about tview and how to do proper TUIs - expect some tech debt.
 1. Release pipeline
 1. Unit tests
 1. Comment code
+1. Branches / PR mode
