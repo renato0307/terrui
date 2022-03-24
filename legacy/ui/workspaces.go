@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/go-tfe"
 	"github.com/rivo/tview"
 
-	"github.com/renato0307/terrui/internal/client"
+	"github.com/renato0307/terrui/legacy/client"
 )
 
 type WorkspaceList struct {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/renato0307/terrui/internal/client"
+	"github.com/renato0307/terrui/legacy/client"
 	"github.com/rivo/tview"
 
 	"gopkg.in/yaml.v3"

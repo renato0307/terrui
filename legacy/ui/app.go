@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/renato0307/terrui/internal/config"
+	"github.com/renato0307/terrui/legacy/config"
 	"github.com/rivo/tview"
 )
 
@@ -47,20 +47,7 @@ func NewApp() *App {
 	prompt.AddListener("app", a)
 	prompt.SetApp(a)
 
-	scList := []SupportedCommand{
-		// {
-		// 	ShortCut: "esc",
-		// 	Name:     "go back",
-		// },
-		{
-			ShortCut: "ctrl+c",
-			Name:     "quit",
-		},
-		{
-			ShortCut: "?",
-			Name:     "show help (works in all screens)",
-		},
-	}
+	scList := []SupportedCommand{}
 	supportedCommands := NewSupportedCommands(a, scList, 3)
 
 	workspace := NewHeader(a, config.Workspace, "workspace", tview.Styles.PrimaryTextColor, 0)
@@ -115,18 +102,10 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 	return evt
 }
 
+// for prompt
 func (a *App) Completed(text string) {
 	a.ResetFocus()
 	a.processCommand(text)
-}
-
-func (a *App) Canceled() {
-	a.ResetFocus()
-}
-
-func (a *App) ResetFocus() {
-	_, frontPage := a.pages.GetFrontPage()
-	a.SetFocus(frontPage)
 }
 
 func (a *App) processCommand(text string) {
@@ -138,6 +117,15 @@ func (a *App) processCommand(text string) {
 	default:
 		a.message.ShowError(fmt.Sprintf("invalid command: %s", text))
 	}
+}
+
+func (a *App) Canceled() {
+	a.ResetFocus()
+}
+
+func (a *App) ResetFocus() {
+	_, frontPage := a.pages.GetFrontPage()
+	a.SetFocus(frontPage)
 }
 
 func (a *App) showOrganizationList() {

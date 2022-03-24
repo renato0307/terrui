@@ -6,7 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	"github.com/renato0307/terrui/internal/client"
+	"github.com/renato0307/terrui/legacy/client"
 )
 
 type OrganizationList struct {
