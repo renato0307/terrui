@@ -23,9 +23,8 @@ type WorkspacesPage struct {
 
 func NewWorkspacesPage(app *App) Page {
 	ol := WorkspacesPage{
-		Table: tview.NewTable(),
-		app:   app,
-
+		Table:            tview.NewTable(),
+		app:              app,
 		currentWorkspace: 1,
 	}
 
@@ -73,6 +72,10 @@ func (wl *WorkspacesPage) View() string {
 		wl.Table.SetCell(r, 6, fmtUpdatedAt(w).SetExpansion(1))
 	}
 
+	wl.SetSelectionChangedFunc(func(row, column int) {
+		wl.currentWorkspace = row
+	})
+
 	return "workspaces loaded"
 }
 
@@ -110,7 +113,10 @@ func fmtCurrentRun(w *tfe.Workspace) *tview.TableCell {
 }
 
 func (w *WorkspacesPage) BindKeys() KeyActions {
-	return KeyActions{}
+	return KeyActions{
+		tcell.KeyEnter: NewKeyAction("select workspace", w.selectWorkspace, true),
+	}
+
 }
 
 func (w *WorkspacesPage) Crumb() []string {
@@ -126,4 +132,13 @@ func (w *WorkspacesPage) Name() string {
 
 func (w *WorkspacesPage) Footer() string {
 	return ""
+}
+
+func (w *WorkspacesPage) selectWorkspace(ek *tcell.EventKey) *tcell.EventKey {
+	w.app.config.Workspace = w.Table.GetCell(w.currentWorkspace, 1).Text
+	w.app.config.Save()
+
+	w.app.activatePage(WorkspacePageName, nil, false)
+
+	return nil
 }

@@ -27,27 +27,26 @@ func NewTFEClient() (*TFEClient, error) {
 }
 
 func (c *TFEClient) ListOrganizations() (*tfe.OrganizationList, error) {
-	return c.client.Organizations.List(context.Background(), tfe.OrganizationListOptions{})
+	return c.client.Organizations.List(context.Background(), &tfe.OrganizationListOptions{})
 }
 
 func (c *TFEClient) ListWorkspaces(org string) (*tfe.WorkspaceList, error) {
-	includes := "current_run"
-	return c.client.Workspaces.List(context.Background(), org, tfe.WorkspaceListOptions{
-		Include:     &includes,
+	return c.client.Workspaces.List(context.Background(), org, &tfe.WorkspaceListOptions{
+		Include:     []tfe.WSIncludeOpt{"current_run"},
 		ListOptions: tfe.ListOptions{PageSize: 30},
 	})
 }
 
 func (c *TFEClient) ReadWorkspace(org, workspace string) (*tfe.Workspace, error) {
 	w, err := c.client.Workspaces.ReadWithOptions(context.Background(), org, workspace, &tfe.WorkspaceReadOptions{
-		Include: "current_run,current_run.plan,locked_by",
+		Include: []tfe.WSIncludeOpt{"current_run", "current_run.plan", "locked_by"},
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	r, err := c.client.Runs.ReadWithOptions(context.Background(), w.CurrentRun.ID, &tfe.RunReadOptions{
-		Include: "created_by,plan,apply",
+		Include: []tfe.RunIncludeOpt{"created_by", "plan", "apply"},
 	})
 	if err != nil {
 		return nil, err
@@ -58,5 +57,5 @@ func (c *TFEClient) ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 }
 
 func (c *TFEClient) ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error) {
-	return c.client.Variables.List(context.Background(), workspaceID, tfe.VariableListOptions{})
+	return c.client.Variables.List(context.Background(), workspaceID, &tfe.VariableListOptions{})
 }

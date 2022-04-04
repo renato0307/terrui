@@ -76,6 +76,7 @@ func initPages() map[string]PageFactory {
 
 	pagesMap[OrganizationsPageName] = NewOrganizationsPage
 	pagesMap[WorkspacesPageName] = NewWorkspacesPage
+	pagesMap[WorkspacePageName] = NewWorkspacePage
 	pagesMap[HelpPageName] = NewHelpPage
 
 	return pagesMap
@@ -91,7 +92,9 @@ func (a *App) activatePage(name string, page Page, skipLoad bool) {
 		page = pageFactory(a)
 	}
 
-	a.actions.Clear()
+	if page.Name() != HelpPageName {
+		a.actions.Clear()
+	}
 	a.actions.Add(a.bindKeys())
 	a.actions.Add(page.BindKeys())
 
