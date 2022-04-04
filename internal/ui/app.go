@@ -52,7 +52,7 @@ func NewApp() *App {
 	a.header = header
 	a.footer = footer
 	a.pagesMap = initPages()
-	a.actions = KeyActions{}
+	a.actions = a.bindKeys()
 
 	if config.Organization == "" {
 		a.activatePage(OrganizationsPageName)
@@ -114,12 +114,27 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 	if ok {
 		return action.Action(evt)
 	}
-
-	switch key {
-	case tcell.KeyCtrlC:
-		a.Stop()
-		os.Exit(0)
-	}
-
 	return evt
+}
+
+func (a *App) bindKeys() KeyActions {
+	return KeyActions{
+		tcell.KeyCtrlO: NewSharedKeyAction("list organizations", a.listOrgs, true),
+		tcell.KeyCtrlC: NewSharedKeyAction("quit", a.quit, true),
+	}
+}
+
+func (a *App) listOrgs(ek *tcell.EventKey) *tcell.EventKey {
+	a.config.Organization = ""
+	a.config.Save()
+	a.activatePage(OrganizationsPageName)
+
+	return nil
+}
+
+func (a *App) quit(ek *tcell.EventKey) *tcell.EventKey {
+	a.Stop()
+	os.Exit(0)
+
+	return nil
 }

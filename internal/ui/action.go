@@ -13,6 +13,7 @@ type (
 		Description string
 		Action      ActionHandler
 		Visible     bool
+		Shared      bool
 	}
 
 	// KeyActions tracks mappings between keystrokes and actions.
@@ -22,6 +23,11 @@ type (
 // NewKeyAction returns a new keyboard action.
 func NewKeyAction(d string, a ActionHandler, display bool) KeyAction {
 	return KeyAction{Description: d, Action: a, Visible: display}
+}
+
+// NewSharedKeyAction returns a new shared keyboard action.
+func NewSharedKeyAction(d string, a ActionHandler, display bool) KeyAction {
+	return KeyAction{Description: d, Action: a, Visible: display, Shared: true}
 }
 
 // Add sets up keyboard action listener.

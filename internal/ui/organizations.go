@@ -66,7 +66,7 @@ func (o *OrganizationsPage) View() string {
 
 func (o *OrganizationsPage) BindKeys() KeyActions {
 	return KeyActions{
-		tcell.KeyEnter: NewKeyAction("select-org", o.selectOrg, true),
+		tcell.KeyEnter: NewKeyAction("select organization", o.selectOrg, true),
 	}
 }
 

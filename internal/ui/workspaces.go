@@ -105,18 +105,7 @@ func fmtCurrentRun(w *tfe.Workspace) *tview.TableCell {
 }
 
 func (w *WorkspacesPage) BindKeys() KeyActions {
-	return KeyActions{
-		tcell.KeyCtrlO: NewKeyAction("list-orgs", w.listOrgs, true),
-	}
-}
-
-func (w *WorkspacesPage) listOrgs(ek *tcell.EventKey) *tcell.EventKey {
-	w.app.config.Organization = ""
-	w.app.config.Save()
-
-	w.app.activatePage(OrganizationsPageName)
-
-	return nil
+	return KeyActions{}
 }
 
 func (w *WorkspacesPage) Crumb() []string {
