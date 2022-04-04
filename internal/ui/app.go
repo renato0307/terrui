@@ -117,7 +117,7 @@ func (a *App) exec(p Page, skipLoad bool) {
 		if !skipLoad {
 			err := p.Load()
 			if err != nil {
-				a.footer.ShowError(err.Error())
+				a.footer.ShowError(fmt.Sprintf("😵%s", err.Error()))
 				return
 			}
 		}
