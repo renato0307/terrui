@@ -50,11 +50,14 @@ func (o *OrganizationsPage) View() string {
 	o.SetCell(0, 0, tview.NewTableCell("ID").SetSelectable(false))
 	o.SetCell(0, 1, tview.NewTableCell("NAME").SetSelectable(false))
 	o.SetCell(0, 2, tview.NewTableCell("E-MAIL").SetSelectable(false))
-	for i, org := range o.orgs.Items {
-		r := i + 1
-		o.SetCell(r, 0, tview.NewTableCell(org.ExternalID).SetExpansion(1))
-		o.SetCell(r, 1, tview.NewTableCell(org.Name).SetExpansion(1))
-		o.SetCell(r, 2, tview.NewTableCell(org.Email).SetExpansion(2))
+
+	if o.orgs != nil {
+		for i, org := range o.orgs.Items {
+			r := i + 1
+			o.SetCell(r, 0, tview.NewTableCell(org.ExternalID).SetExpansion(1))
+			o.SetCell(r, 1, tview.NewTableCell(org.Name).SetExpansion(1))
+			o.SetCell(r, 2, tview.NewTableCell(org.Email).SetExpansion(2))
+		}
 	}
 
 	o.SetSelectionChangedFunc(func(row, column int) {

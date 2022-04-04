@@ -91,7 +91,10 @@ func (a *App) activatePage(name string, page Page, skipLoad bool) {
 		page = pageFactory(a)
 	}
 
+	a.actions.Clear()
+	a.actions.Add(a.bindKeys())
 	a.actions.Add(page.BindKeys())
+
 	a.pages.AddAndSwitchToPage(name, page, true)
 
 	if page.Footer() != "" {
