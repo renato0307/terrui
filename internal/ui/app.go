@@ -86,7 +86,7 @@ func (a *App) activatePage(name string) {
 	page := pageFactory(a)
 	a.actions.Add(page.BindKeys())
 	a.pages.AddAndSwitchToPage(name, page, true)
-	a.footer.ShowText("press ? for help")
+	a.footer.ShowText("💡press ? for help")
 
 	go a.exec(page)
 }
@@ -94,7 +94,7 @@ func (a *App) activatePage(name string) {
 func (a *App) exec(p Page) {
 	a.QueueUpdateDraw(func() {
 		a.header.SetCrumb(p.Crumb())
-		a.footer.Show("⏳ loading...", tview.Styles.SecondaryTextColor)
+		a.footer.Show("⏳loading...", tview.Styles.SecondaryTextColor)
 	})
 	a.QueueUpdateDraw(func() {
 		err := p.Load()
@@ -103,7 +103,7 @@ func (a *App) exec(p Page) {
 			return
 		}
 		msg := p.View()
-		a.footer.Show(fmt.Sprintf("✅ %s", msg), tview.Styles.SecondaryTextColor)
+		a.footer.Show(fmt.Sprintf("✅%s", msg), tview.Styles.SecondaryTextColor)
 	})
 }
 
