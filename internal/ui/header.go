@@ -14,13 +14,15 @@ const activeColor string = "navy"
 type Header struct {
 	*tview.TextView
 
-	breadcrumb []string
+	crumb     []string
+	baseCrumb []string
 }
 
 func NewHeader() *Header {
 	h := &Header{
-		TextView:   tview.NewTextView(),
-		breadcrumb: []string{"terrUI"},
+		TextView:  tview.NewTextView(),
+		crumb:     []string{},
+		baseCrumb: []string{"terrUI"},
 	}
 	h.SetBorderPadding(0, 0, 1, 0)
 	h.SetDynamicColors(true)
@@ -33,10 +35,10 @@ func NewHeader() *Header {
 func (h *Header) draw() {
 	h.Clear()
 	var bgColor string
-	for i, s := range h.breadcrumb {
+	for i, s := range h.crumb {
 		if i == 0 {
 			bgColor = logoColor
-		} else if i == len(h.breadcrumb)-1 {
+		} else if i == len(h.crumb)-1 {
 			bgColor = activeColor
 		} else {
 			bgColor = color
@@ -49,13 +51,9 @@ func (h *Header) draw() {
 	}
 }
 
-func (h *Header) GoForward(text string) {
-	h.breadcrumb = append(h.breadcrumb, text)
-	h.draw()
-}
-
-func (h *Header) GoBack() {
-	h.breadcrumb = h.breadcrumb[:len(h.breadcrumb)-1]
+func (h *Header) SetCrumb(crumbs []string) *Header {
+	h.crumb = append(h.baseCrumb, crumbs...)
 	h.draw()
 
+	return h
 }

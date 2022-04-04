@@ -58,7 +58,7 @@ func (o *OrganizationsPage) View() string {
 	}
 
 	o.SetSelectionChangedFunc(func(row, column int) {
-		o.currentOrganization = row + 1
+		o.currentOrganization = row
 	})
 
 	return "organizations loaded"
@@ -66,11 +66,19 @@ func (o *OrganizationsPage) View() string {
 
 func (o *OrganizationsPage) BindKeys() KeyActions {
 	return KeyActions{
-		tcell.KeyEnter: NewKeyAction("selectorg", o.selectOrg, true),
+		tcell.KeyEnter: NewKeyAction("select-org", o.selectOrg, true),
 	}
 }
 
+func (o *OrganizationsPage) Crumb() []string {
+	return []string{OrganizationsPageName}
+}
+
 func (o *OrganizationsPage) selectOrg(ek *tcell.EventKey) *tcell.EventKey {
-	o.app.activatePage(OrganizationPageName)
+	o.app.config.Organization = o.Table.GetCell(o.currentOrganization, 1).Text
+	o.app.config.Save()
+
+	o.app.activatePage(WorkspacesPageName)
+
 	return nil
 }

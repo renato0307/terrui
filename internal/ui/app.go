@@ -37,7 +37,7 @@ func NewApp() *App {
 		SetRows(1, 0, 1).
 		SetBorders(true)
 
-	header := NewHeader()
+	header := NewHeader().SetCrumb([]string{})
 	footer := NewFooter(a, "welcome 🤓 - press ? for help", tview.Styles.PrimaryTextColor, 5)
 
 	layout.AddItem(header, 0, 0, 1, 1, 0, 0, false).
@@ -56,7 +56,7 @@ func NewApp() *App {
 	if config.Organization == "" {
 		a.activatePage(OrganizationsPageName)
 	} else {
-		// a.gotoOrganization()
+		a.activatePage(WorkspacesPageName)
 	}
 
 	a.SetInputCapture(a.appKeyboard)
@@ -71,13 +71,12 @@ func initPages() map[string]PageFactory {
 	pagesMap := map[string]PageFactory{}
 
 	pagesMap[OrganizationsPageName] = NewOrganizationsPage
-	pagesMap[OrganizationPageName] = NewOrganizationPage
+	pagesMap[WorkspacesPageName] = NewWorkspacesPage
 
 	return pagesMap
 }
 
 func (a *App) activatePage(name string) {
-	a.header.GoForward(name)
 	if a.pages.HasPage(name) {
 		a.pages.RemovePage(name)
 	}
@@ -93,6 +92,7 @@ func (a *App) activatePage(name string) {
 
 func (a *App) exec(p Page) {
 	a.QueueUpdateDraw(func() {
+		a.header.SetCrumb(p.Crumb())
 		a.footer.Show("⏳ loading...", tview.Styles.SecondaryTextColor)
 	})
 	a.QueueUpdateDraw(func() {

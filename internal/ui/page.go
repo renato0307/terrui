@@ -10,4 +10,5 @@ type Page interface {
 	Load() error
 	View() string
 	BindKeys() KeyActions
+	Crumb() []string
 }
