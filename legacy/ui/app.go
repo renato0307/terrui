@@ -90,10 +90,6 @@ func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 	// nolint:exhaustive
 	key := tcell.Key(evt.Rune())
 	switch key {
-	case KeyColon:
-		a.prompt.Reset()
-		a.SetFocus(a.prompt)
-		return nil
 	case tcell.KeyCtrlC:
 		a.Stop()
 		os.Exit(0)
