@@ -57,6 +57,11 @@ func (wl *WorkspacesPage) View() string {
 	wl.Table.SetCell(0, 4, tview.NewTableCell("COUNT").SetSelectable(false))
 	wl.Table.SetCell(0, 5, tview.NewTableCell("RUN STATUS").SetSelectable(false))
 	wl.Table.SetCell(0, 5, tview.NewTableCell("LATEST CHANGE").SetSelectable(false))
+
+	if wl.workspaces == nil || wl.workspaces.TotalCount == 0 {
+		return "no workspaces found"
+	}
+
 	for i, w := range wl.workspaces.Items {
 		r := i + 1
 		wl.Table.SetCell(r, 0, tview.NewTableCell(w.ID).SetExpansion(1))
