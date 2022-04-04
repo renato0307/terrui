@@ -33,6 +33,7 @@ func NewApp() *App {
 	}
 
 	pages := tview.NewPages()
+	pages.SetBorderPadding(0, 0, 1, 1)
 	layout := tview.NewGrid().
 		SetRows(1, 0, 1).
 		SetBorders(true)
