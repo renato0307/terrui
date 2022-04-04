@@ -114,3 +114,11 @@ func (w *WorkspacesPage) Crumb() []string {
 		WorkspacesPageName,
 	}
 }
+
+func (w *WorkspacesPage) Name() string {
+	return WorkspacesPageName
+}
+
+func (w *WorkspacesPage) Footer() string {
+	return ""
+}

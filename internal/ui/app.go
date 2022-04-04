@@ -9,13 +9,16 @@ import (
 	"github.com/rivo/tview"
 )
 
+const defaultFooter string = "💡press ? for help"
+
 type App struct {
 	*tview.Application
 
-	layout   *tview.Grid
-	pages    *tview.Pages
-	pagesMap map[string]PageFactory
-	actions  KeyActions
+	layout      *tview.Grid
+	pages       *tview.Pages
+	pagesMap    map[string]PageFactory
+	currentPage Page
+	actions     KeyActions
 
 	header *Header
 	footer *Footer
@@ -39,7 +42,7 @@ func NewApp() *App {
 		SetBorders(true)
 
 	header := NewHeader().SetCrumb([]string{})
-	footer := NewFooter(a, "welcome 🤓 - press ? for help", tview.Styles.PrimaryTextColor, 5)
+	footer := NewFooter(a, "welcome 🤓 - press ? for help", tview.Styles.PrimaryTextColor, 3)
 
 	layout.AddItem(header, 0, 0, 1, 1, 0, 0, false).
 		AddItem(pages, 1, 0, 1, 1, 0, 0, false).
@@ -55,9 +58,9 @@ func NewApp() *App {
 	a.actions = a.bindKeys()
 
 	if config.Organization == "" {
-		a.activatePage(OrganizationsPageName)
+		a.activatePage(OrganizationsPageName, nil, false)
 	} else {
-		a.activatePage(WorkspacesPageName)
+		a.activatePage(WorkspacesPageName, nil, false)
 	}
 
 	a.SetInputCapture(a.appKeyboard)
@@ -73,43 +76,60 @@ func initPages() map[string]PageFactory {
 
 	pagesMap[OrganizationsPageName] = NewOrganizationsPage
 	pagesMap[WorkspacesPageName] = NewWorkspacesPage
+	pagesMap[HelpPageName] = NewHelpPage
 
 	return pagesMap
 }
 
-func (a *App) activatePage(name string) {
+func (a *App) activatePage(name string, page Page, skipLoad bool) {
 	if a.pages.HasPage(name) {
 		a.pages.RemovePage(name)
 	}
 
-	pageFactory := a.pagesMap[name]
-	page := pageFactory(a)
+	if page == nil {
+		pageFactory := a.pagesMap[name]
+		page = pageFactory(a)
+	}
+
 	a.actions.Add(page.BindKeys())
 	a.pages.AddAndSwitchToPage(name, page, true)
-	a.footer.ShowText("💡press ? for help")
 
-	go a.exec(page)
+	if page.Footer() != "" {
+		a.footer.ShowText(page.Footer())
+	} else {
+		a.footer.ShowText(defaultFooter)
+	}
+
+	a.currentPage = page
+
+	go a.exec(page, skipLoad)
 }
 
-func (a *App) exec(p Page) {
+func (a *App) exec(p Page, skipLoad bool) {
 	a.QueueUpdateDraw(func() {
 		a.header.SetCrumb(p.Crumb())
 		a.footer.Show("⏳loading...", tview.Styles.SecondaryTextColor)
 	})
 	a.QueueUpdateDraw(func() {
-		err := p.Load()
-		if err != nil {
-			a.footer.ShowError(err.Error())
-			return
+		if !skipLoad {
+			err := p.Load()
+			if err != nil {
+				a.footer.ShowError(err.Error())
+				return
+			}
 		}
 		msg := p.View()
-		a.footer.Show(fmt.Sprintf("✅%s", msg), tview.Styles.SecondaryTextColor)
+
+		if msg != "" {
+			a.footer.Show(fmt.Sprintf("✅%s", msg), tview.Styles.SecondaryTextColor)
+		} else {
+			a.footer.ShowText(p.Footer())
+		}
 	})
 }
 
 func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
-	// nolint:exhaustive
-	key := tcell.Key(evt.Rune())
+	key := AsKey(evt)
 	action, ok := a.actions[key]
 	if ok {
 		return action.Action(evt)
@@ -121,13 +141,14 @@ func (a *App) bindKeys() KeyActions {
 	return KeyActions{
 		tcell.KeyCtrlO: NewSharedKeyAction("list organizations", a.listOrgs, true),
 		tcell.KeyCtrlC: NewSharedKeyAction("quit", a.quit, true),
+		KeyHelp:        NewSharedKeyAction("help", a.showHelp, true),
 	}
 }
 
 func (a *App) listOrgs(ek *tcell.EventKey) *tcell.EventKey {
 	a.config.Organization = ""
 	a.config.Save()
-	a.activatePage(OrganizationsPageName)
+	a.activatePage(OrganizationsPageName, nil, false)
 
 	return nil
 }
@@ -137,4 +158,22 @@ func (a *App) quit(ek *tcell.EventKey) *tcell.EventKey {
 	os.Exit(0)
 
 	return nil
+}
+
+func (a *App) showHelp(ek *tcell.EventKey) *tcell.EventKey {
+	currentPage := a.currentPage
+	a.activatePage(HelpPageName, nil, false)
+	a.currentPage = currentPage
+	return nil
+}
+
+func AsKey(evt *tcell.EventKey) tcell.Key {
+	if evt.Key() != tcell.KeyRune {
+		return evt.Key()
+	}
+	key := tcell.Key(evt.Rune())
+	if evt.Modifiers() == tcell.ModAlt {
+		key = tcell.Key(int16(evt.Rune()) * int16(evt.Modifiers()))
+	}
+	return key
 }

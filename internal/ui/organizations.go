@@ -78,7 +78,15 @@ func (o *OrganizationsPage) selectOrg(ek *tcell.EventKey) *tcell.EventKey {
 	o.app.config.Organization = o.Table.GetCell(o.currentOrganization, 1).Text
 	o.app.config.Save()
 
-	o.app.activatePage(WorkspacesPageName)
+	o.app.activatePage(WorkspacesPageName, nil, false)
 
 	return nil
+}
+
+func (o *OrganizationsPage) Name() string {
+	return OrganizationsPageName
+}
+
+func (o *OrganizationsPage) Footer() string {
+	return ""
 }

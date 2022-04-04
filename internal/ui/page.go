@@ -11,4 +11,6 @@ type Page interface {
 	View() string
 	BindKeys() KeyActions
 	Crumb() []string
+	Name() string
+	Footer() string
 }
