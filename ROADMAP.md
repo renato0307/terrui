@@ -13,7 +13,7 @@ about tview and how to do proper TUIs - expect some tech debt.
 
 ## New features
 
-1. Search workspaces
+1. ~Search workspaces~ DONE
 1. Inspect state
 1. List workspace runs
 
@@ -21,7 +21,7 @@ about tview and how to do proper TUIs - expect some tech debt.
 
 1. ~Show help~ DONE
 1. Support pagination on organization
-1. Support pagination on workspaces
+1. ~Support pagination on workspaces~ DONE
 1. Support pagination on workspace variables
 
 ## CI/CD & Quality

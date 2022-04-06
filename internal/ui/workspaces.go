@@ -15,12 +15,15 @@ const WorkspacesPageName string = "workspaces"
 
 type WorkspacesPage struct {
 	*tview.Flex
-	table      *tview.Table
-	pagination *tview.TextView
+	table       *tview.Table
+	pagination  *tview.TextView
+	searchInput *tview.InputField
 
 	app              *App
 	workspaces       *tfe.WorkspaceList
 	currentWorkspace int
+
+	searching bool
 }
 
 func NewWorkspacesPage(app *App) Page {
@@ -28,13 +31,19 @@ func NewWorkspacesPage(app *App) Page {
 		Flex:             tview.NewFlex(),
 		table:            tview.NewTable(),
 		pagination:       tview.NewTextView(),
+		searchInput:      tview.NewInputField(),
 		app:              app,
 		currentWorkspace: 1,
 	}
 
+	headerFlex := tview.NewFlex()
+	headerFlex.AddItem(w.searchInput, 0, 1, false)
+	headerFlex.AddItem(w.pagination, 0, 1, false)
+
+	w.searchInput.SetFieldBackgroundColor(w.GetBackgroundColor())
 	w.pagination.SetTextAlign(tview.AlignRight)
 
-	w.AddItem(w.pagination, 2, 0, false).
+	w.AddItem(headerFlex, 2, 0, false).
 		SetDirection(tview.FlexRow).
 		AddItem(w.table, 0, 1, true)
 
@@ -42,16 +51,16 @@ func NewWorkspacesPage(app *App) Page {
 }
 
 func (w *WorkspacesPage) Load() error {
-	return w.load(-1)
+	return w.load("", -1)
 }
 
-func (w *WorkspacesPage) load(pageNumber int) error {
+func (w *WorkspacesPage) load(searchText string, pageNumber int) error {
 	tfeClient, err := client.NewTFEClient()
 	if err != nil {
 		return fmt.Errorf("error creating the TFE client: %w", err)
 	}
 
-	workspaces, err := tfeClient.ListWorkspaces(w.app.config.Organization, pageNumber)
+	workspaces, err := tfeClient.ListWorkspaces(w.app.config.Organization, searchText, pageNumber)
 	if err != nil {
 		return fmt.Errorf("error listing the organization: %w", err)
 	}
@@ -61,6 +70,8 @@ func (w *WorkspacesPage) load(pageNumber int) error {
 }
 
 func (w *WorkspacesPage) View() string {
+	w.table.Clear()
+
 	w.table.SetSelectable(true, false)
 	w.table.SetCell(0, 0, tview.NewTableCell("ID").SetSelectable(false))
 	w.table.SetCell(0, 1, tview.NewTableCell("NAME").SetSelectable(false))
@@ -136,8 +147,9 @@ func (w *WorkspacesPage) BindKeys() KeyActions {
 		tcell.KeyEnter: NewKeyAction("select workspace", w.actionSelectWorkspace, true),
 		tcell.KeyCtrlJ: NewKeyAction("next page", w.actionPaginationNextPage, true),
 		tcell.KeyCtrlK: NewKeyAction("previous page", w.actionPaginationPrevPage, true),
+		KeySlash:       NewKeyAction("search workspaces", w.actionSearch, true),
+		tcell.KeyEsc:   NewKeyAction("cancel search if search results are active", w.actionCancelSearch, true),
 	}
-
 }
 
 func (w *WorkspacesPage) Crumb() []string {
@@ -156,6 +168,10 @@ func (w *WorkspacesPage) Footer() string {
 }
 
 func (w *WorkspacesPage) actionSelectWorkspace(ek *tcell.EventKey) *tcell.EventKey {
+	if w.searching {
+		return ek
+	}
+
 	w.app.config.Workspace = w.table.GetCell(w.currentWorkspace, 1).Text
 	w.app.config.Save()
 
@@ -174,13 +190,47 @@ func (w *WorkspacesPage) actionPaginationPrevPage(ek *tcell.EventKey) *tcell.Eve
 	return nil
 }
 
+func (w *WorkspacesPage) actionSearch(ek *tcell.EventKey) *tcell.EventKey {
+	w.searching = true
+
+	w.searchInput.SetFieldBackgroundColor(tview.Styles.ContrastBackgroundColor)
+	w.searchInput.SetLabel("🔎 ")
+	w.searchInput.SetDoneFunc(func(key tcell.Key) {
+		switch key {
+		case tcell.KeyEscape:
+			w.searchInput.SetFieldBackgroundColor(w.GetBackgroundColor())
+			w.searchInput.SetLabel("")
+			w.searchInput.SetText("")
+		case tcell.KeyEnter:
+			go w.app.ExecPageWithLoadFunc(w, w.loadSearchFunc(), false)
+		}
+		w.searching = false
+		w.app.SetFocus(w.table)
+	})
+	w.app.SetFocus(w.searchInput)
+	return nil
+}
+
+func (w *WorkspacesPage) actionCancelSearch(ek *tcell.EventKey) *tcell.EventKey {
+	if w.searchInput.GetText() == "" {
+		return ek
+	}
+
+	w.searchInput.SetFieldBackgroundColor(w.GetBackgroundColor())
+	w.searchInput.SetLabel("")
+	w.searchInput.SetText("")
+	go w.app.ExecPageWithLoadFunc(w, w.loadSearchFunc(), false)
+
+	return nil
+}
+
 func (w *WorkspacesPage) loadNextPageFunc() func() error {
 	return func() error {
 		pageToLoad := w.workspaces.CurrentPage + 1
 		if pageToLoad > w.workspaces.TotalPages {
 			pageToLoad = 1
 		}
-		return w.load(pageToLoad)
+		return w.load(w.searchInput.GetText(), pageToLoad)
 	}
 }
 
@@ -190,6 +240,12 @@ func (w *WorkspacesPage) loadPrevPageFunc() func() error {
 		if pageToLoad < 1 {
 			pageToLoad = w.workspaces.TotalPages
 		}
-		return w.load(pageToLoad)
+		return w.load(w.searchInput.GetText(), pageToLoad)
+	}
+}
+
+func (w *WorkspacesPage) loadSearchFunc() func() error {
+	return func() error {
+		return w.load(w.searchInput.GetText(), -1)
 	}
 }
