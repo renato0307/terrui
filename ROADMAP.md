@@ -9,7 +9,7 @@ about tview and how to do proper TUIs - expect some tech debt.
 ## Tech debt
 
 1. Navigation
-1. Make TFE client an interface
+1. ~Make TFE client an interface~ DONE
 
 ## New features
 
