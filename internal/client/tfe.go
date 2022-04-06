@@ -7,13 +7,20 @@ import (
 	"github.com/hashicorp/go-tfe"
 )
 
-type TFEClient struct {
+type TFEClient interface {
+	ListOrganizations() (*tfe.OrganizationList, error)
+	ListWorkspaces(org string) (*tfe.WorkspaceList, error)
+	ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
+	ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error)
+}
+
+type TFEClientImpl struct {
 	config *tfe.Config
 	client *tfe.Client
 }
 
-func NewTFEClient() (*TFEClient, error) {
-	c := TFEClient{}
+func NewTFEClient() (TFEClient, error) {
+	c := TFEClientImpl{}
 
 	c.config = &tfe.Config{Token: os.Getenv("TFE_TOKEN")}
 
@@ -26,18 +33,18 @@ func NewTFEClient() (*TFEClient, error) {
 	return &c, nil
 }
 
-func (c *TFEClient) ListOrganizations() (*tfe.OrganizationList, error) {
+func (c *TFEClientImpl) ListOrganizations() (*tfe.OrganizationList, error) {
 	return c.client.Organizations.List(context.Background(), &tfe.OrganizationListOptions{})
 }
 
-func (c *TFEClient) ListWorkspaces(org string) (*tfe.WorkspaceList, error) {
+func (c *TFEClientImpl) ListWorkspaces(org string) (*tfe.WorkspaceList, error) {
 	return c.client.Workspaces.List(context.Background(), org, &tfe.WorkspaceListOptions{
 		Include:     []tfe.WSIncludeOpt{"current_run"},
 		ListOptions: tfe.ListOptions{PageSize: 30},
 	})
 }
 
-func (c *TFEClient) ReadWorkspace(org, workspace string) (*tfe.Workspace, error) {
+func (c *TFEClientImpl) ReadWorkspace(org, workspace string) (*tfe.Workspace, error) {
 	w, err := c.client.Workspaces.ReadWithOptions(context.Background(), org, workspace, &tfe.WorkspaceReadOptions{
 		Include: []tfe.WSIncludeOpt{"current_run", "current_run.plan", "locked_by"},
 	})
@@ -56,6 +63,6 @@ func (c *TFEClient) ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 	return w, err
 }
 
-func (c *TFEClient) ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error) {
+func (c *TFEClientImpl) ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error) {
 	return c.client.Variables.List(context.Background(), workspaceID, &tfe.VariableListOptions{})
 }
