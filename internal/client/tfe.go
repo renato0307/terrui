@@ -9,7 +9,7 @@ import (
 
 type TFEClient interface {
 	ListOrganizations() (*tfe.OrganizationList, error)
-	ListWorkspaces(org string) (*tfe.WorkspaceList, error)
+	ListWorkspaces(org string, pageNumber int) (*tfe.WorkspaceList, error)
 	ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 	ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error)
 }
@@ -37,10 +37,15 @@ func (c *TFEClientImpl) ListOrganizations() (*tfe.OrganizationList, error) {
 	return c.client.Organizations.List(context.Background(), &tfe.OrganizationListOptions{})
 }
 
-func (c *TFEClientImpl) ListWorkspaces(org string) (*tfe.WorkspaceList, error) {
+func (c *TFEClientImpl) ListWorkspaces(org string, pageNumber int) (*tfe.WorkspaceList, error) {
+	options := tfe.ListOptions{PageSize: 30}
+	if pageNumber != -1 {
+		options.PageNumber = pageNumber
+	}
+
 	return c.client.Workspaces.List(context.Background(), org, &tfe.WorkspaceListOptions{
 		Include:     []tfe.WSIncludeOpt{"current_run"},
-		ListOptions: tfe.ListOptions{PageSize: 30},
+		ListOptions: options,
 	})
 }
 

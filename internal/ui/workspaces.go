@@ -14,7 +14,9 @@ import (
 const WorkspacesPageName string = "workspaces"
 
 type WorkspacesPage struct {
-	*tview.Table
+	*tview.Flex
+	table      *tview.Table
+	pagination *tview.TextView
 
 	app              *App
 	workspaces       *tfe.WorkspaceList
@@ -22,23 +24,34 @@ type WorkspacesPage struct {
 }
 
 func NewWorkspacesPage(app *App) Page {
-	ol := WorkspacesPage{
-		Table:            tview.NewTable(),
+	w := WorkspacesPage{
+		Flex:             tview.NewFlex(),
+		table:            tview.NewTable(),
+		pagination:       tview.NewTextView(),
 		app:              app,
 		currentWorkspace: 1,
 	}
 
-	return &ol
+	w.pagination.SetTextAlign(tview.AlignRight)
+
+	w.AddItem(w.pagination, 2, 0, false).
+		SetDirection(tview.FlexRow).
+		AddItem(w.table, 0, 1, true)
+
+	return &w
 }
 
 func (w *WorkspacesPage) Load() error {
+	return w.load(-1)
+}
 
+func (w *WorkspacesPage) load(pageNumber int) error {
 	tfeClient, err := client.NewTFEClient()
 	if err != nil {
 		return fmt.Errorf("error creating the TFE client: %w", err)
 	}
 
-	workspaces, err := tfeClient.ListWorkspaces(w.app.config.Organization)
+	workspaces, err := tfeClient.ListWorkspaces(w.app.config.Organization, pageNumber)
 	if err != nil {
 		return fmt.Errorf("error listing the organization: %w", err)
 	}
@@ -47,34 +60,40 @@ func (w *WorkspacesPage) Load() error {
 	return nil
 }
 
-func (wl *WorkspacesPage) View() string {
-	wl.Table.SetSelectable(true, false)
-	wl.Table.SetCell(0, 0, tview.NewTableCell("ID").SetSelectable(false))
-	wl.Table.SetCell(0, 1, tview.NewTableCell("NAME").SetSelectable(false))
-	wl.Table.SetCell(0, 2, tview.NewTableCell("TAGS").SetSelectable(false))
-	wl.Table.SetCell(0, 3, tview.NewTableCell("TERRAFORM").SetSelectable(false))
-	wl.Table.SetCell(0, 4, tview.NewTableCell("COUNT").SetSelectable(false))
-	wl.Table.SetCell(0, 5, tview.NewTableCell("RUN STATUS").SetSelectable(false))
-	wl.Table.SetCell(0, 5, tview.NewTableCell("LATEST CHANGE").SetSelectable(false))
+func (w *WorkspacesPage) View() string {
+	w.table.SetSelectable(true, false)
+	w.table.SetCell(0, 0, tview.NewTableCell("ID").SetSelectable(false))
+	w.table.SetCell(0, 1, tview.NewTableCell("NAME").SetSelectable(false))
+	w.table.SetCell(0, 2, tview.NewTableCell("TAGS").SetSelectable(false))
+	w.table.SetCell(0, 3, tview.NewTableCell("TERRAFORM").SetSelectable(false))
+	w.table.SetCell(0, 4, tview.NewTableCell("COUNT").SetSelectable(false))
+	w.table.SetCell(0, 5, tview.NewTableCell("RUN STATUS").SetSelectable(false))
+	w.table.SetCell(0, 5, tview.NewTableCell("LATEST CHANGE").SetSelectable(false))
 
-	if wl.workspaces == nil || wl.workspaces.TotalCount == 0 {
+	if w.workspaces == nil || w.workspaces.TotalCount == 0 {
 		return "no workspaces found"
 	}
 
-	for i, w := range wl.workspaces.Items {
+	for i, wi := range w.workspaces.Items {
 		r := i + 1
-		wl.Table.SetCell(r, 0, tview.NewTableCell(w.ID).SetExpansion(1))
-		wl.Table.SetCell(r, 1, tview.NewTableCell(w.Name).SetExpansion(1))
-		wl.Table.SetCell(r, 2, fmtTags(w).SetExpansion(1))
-		wl.Table.SetCell(r, 3, tview.NewTableCell(w.TerraformVersion).SetExpansion(2))
-		wl.Table.SetCell(r, 4, tview.NewTableCell(fmt.Sprint(w.ResourceCount)).SetExpansion(2))
-		wl.Table.SetCell(r, 5, fmtCurrentRun(w).SetExpansion(1))
-		wl.Table.SetCell(r, 6, fmtUpdatedAt(w).SetExpansion(1))
+		w.table.SetCell(r, 0, tview.NewTableCell(wi.ID).SetExpansion(1))
+		w.table.SetCell(r, 1, tview.NewTableCell(wi.Name).SetExpansion(1))
+		w.table.SetCell(r, 2, fmtTags(wi).SetExpansion(1))
+		w.table.SetCell(r, 3, tview.NewTableCell(wi.TerraformVersion).SetExpansion(2))
+		w.table.SetCell(r, 4, tview.NewTableCell(fmt.Sprint(wi.ResourceCount)).SetExpansion(2))
+		w.table.SetCell(r, 5, fmtCurrentRun(wi).SetExpansion(1))
+		w.table.SetCell(r, 6, fmtUpdatedAt(wi).SetExpansion(1))
 	}
 
-	wl.SetSelectionChangedFunc(func(row, column int) {
-		wl.currentWorkspace = row
+	w.table.SetSelectionChangedFunc(func(row, column int) {
+		w.currentWorkspace = row
 	})
+
+	w.pagination.SetText(
+		fmt.Sprintf("page %d of %d, total workspaces: %d",
+			w.workspaces.CurrentPage,
+			w.workspaces.TotalPages,
+			w.workspaces.TotalCount))
 
 	return "workspaces loaded"
 }
@@ -114,7 +133,9 @@ func fmtCurrentRun(w *tfe.Workspace) *tview.TableCell {
 
 func (w *WorkspacesPage) BindKeys() KeyActions {
 	return KeyActions{
-		tcell.KeyEnter: NewKeyAction("select workspace", w.selectWorkspace, true),
+		tcell.KeyEnter: NewKeyAction("select workspace", w.actionSelectWorkspace, true),
+		tcell.KeyCtrlJ: NewKeyAction("next page", w.actionPaginationNextPage, true),
+		tcell.KeyCtrlK: NewKeyAction("previous page", w.actionPaginationPrevPage, true),
 	}
 
 }
@@ -134,11 +155,41 @@ func (w *WorkspacesPage) Footer() string {
 	return ""
 }
 
-func (w *WorkspacesPage) selectWorkspace(ek *tcell.EventKey) *tcell.EventKey {
-	w.app.config.Workspace = w.Table.GetCell(w.currentWorkspace, 1).Text
+func (w *WorkspacesPage) actionSelectWorkspace(ek *tcell.EventKey) *tcell.EventKey {
+	w.app.config.Workspace = w.table.GetCell(w.currentWorkspace, 1).Text
 	w.app.config.Save()
 
 	w.app.activatePage(WorkspacePageName, nil, false)
 
 	return nil
+}
+
+func (w *WorkspacesPage) actionPaginationNextPage(ek *tcell.EventKey) *tcell.EventKey {
+	go w.app.ExecPageWithLoadFunc(w, w.loadNextPageFunc(), false)
+	return nil
+}
+
+func (w *WorkspacesPage) actionPaginationPrevPage(ek *tcell.EventKey) *tcell.EventKey {
+	go w.app.ExecPageWithLoadFunc(w, w.loadPrevPageFunc(), false)
+	return nil
+}
+
+func (w *WorkspacesPage) loadNextPageFunc() func() error {
+	return func() error {
+		pageToLoad := w.workspaces.CurrentPage + 1
+		if pageToLoad > w.workspaces.TotalPages {
+			pageToLoad = 1
+		}
+		return w.load(pageToLoad)
+	}
+}
+
+func (w *WorkspacesPage) loadPrevPageFunc() func() error {
+	return func() error {
+		pageToLoad := w.workspaces.CurrentPage - 1
+		if pageToLoad < 1 {
+			pageToLoad = w.workspaces.TotalPages
+		}
+		return w.load(pageToLoad)
+	}
 }

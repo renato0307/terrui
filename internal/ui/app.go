@@ -108,32 +108,36 @@ func (a *App) activatePage(name string, page Page, skipLoad bool) {
 
 	a.currentPage = page
 
-	go a.exec(page, skipLoad)
+	go a.ExecPage(page, skipLoad)
 }
 
-func (a *App) exec(p Page, skipLoad bool) {
+func (a *App) ExecPage(p Page, skipLoad bool) {
+	a.ExecPageWithLoadFunc(p, p.Load, skipLoad)
+}
+
+func (a *App) ExecPageWithLoadFunc(p Page, loadFn func() error, skipLoad bool) {
 	a.QueueUpdateDraw(func() {
 		a.header.SetCrumb(p.Crumb())
-		a.footer.Show("⏳loading...", tview.Styles.SecondaryTextColor)
+		a.ShowLoading()
 	})
+
 	a.QueueUpdateDraw(func() {
 		if !skipLoad {
-			err := p.Load()
+			err := loadFn()
 			if err != nil {
-				a.footer.ShowError(fmt.Sprintf("😵%s", err.Error()))
+				a.footer.ShowError(fmt.Sprintf("😵 %s", err.Error()))
 				return
 			}
 		}
 		msg := p.View()
 
 		if msg != "" {
-			a.footer.Show(fmt.Sprintf("✅%s", msg), tview.Styles.SecondaryTextColor)
+			a.footer.Show(fmt.Sprintf("✅ %s", msg), tview.Styles.SecondaryTextColor)
 		} else {
 			a.footer.ShowText(p.Footer())
 		}
 	})
 }
-
 func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 	key := AsKey(evt)
 	action, ok := a.actions[key]
@@ -182,4 +186,8 @@ func AsKey(evt *tcell.EventKey) tcell.Key {
 		key = tcell.Key(int16(evt.Rune()) * int16(evt.Modifiers()))
 	}
 	return key
+}
+
+func (a *App) ShowLoading() {
+	a.footer.Show("⏳ loading...", tview.Styles.SecondaryTextColor)
 }
