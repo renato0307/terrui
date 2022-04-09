@@ -35,14 +35,14 @@ func NewApp() *App {
 		panic(err)
 	}
 
+	header := NewHeader().SetCrumb([]string{})
 	pages := tview.NewPages()
 	pages.SetBorderPadding(0, 0, 1, 1)
+	footer := NewFooter(a, "welcome 🤓 - press ? for help", tview.Styles.PrimaryTextColor, 3)
+
 	layout := tview.NewGrid().
 		SetRows(1, 0, 1).
 		SetBorders(true)
-
-	header := NewHeader().SetCrumb([]string{})
-	footer := NewFooter(a, "welcome 🤓 - press ? for help", tview.Styles.PrimaryTextColor, 3)
 
 	layout.AddItem(header, 0, 0, 1, 1, 0, 0, false).
 		AddItem(pages, 1, 0, 1, 1, 0, 0, false).
@@ -57,13 +57,14 @@ func NewApp() *App {
 	a.pagesMap = initPages()
 	a.actions = a.bindKeys()
 
-	if config.Organization == "" {
-		a.activatePage(OrganizationsPageName, nil, false)
-	} else {
+	if config.Workspace != "" {
+		a.activatePage(WorkspacePageName, nil, false)
+	} else if config.Organization != "" {
 		a.activatePage(WorkspacesPageName, nil, false)
 	}
 
 	a.SetInputCapture(a.appKeyboard)
+
 	return a
 }
 
@@ -73,7 +74,6 @@ func (a *App) Run() error {
 
 func initPages() map[string]PageFactory {
 	pagesMap := map[string]PageFactory{}
-
 	pagesMap[OrganizationsPageName] = NewOrganizationsPage
 	pagesMap[WorkspacesPageName] = NewWorkspacesPage
 	pagesMap[WorkspacePageName] = NewWorkspacePage
@@ -138,6 +138,7 @@ func (a *App) ExecPageWithLoadFunc(p Page, loadFn func() error, skipLoad bool) {
 		}
 	})
 }
+
 func (a *App) appKeyboard(evt *tcell.EventKey) *tcell.EventKey {
 	key := AsKey(evt)
 	action, ok := a.actions[key]
