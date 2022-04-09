@@ -20,7 +20,7 @@ about tview and how to do proper TUIs - expect some tech debt.
 ## Improvements
 
 1. ~Show help~ DONE
-1. Support pagination on organization
+1. ~Support pagination on organization~ DONE
 1. ~Support pagination on workspaces~ DONE
 1. Support pagination on workspace variables
 

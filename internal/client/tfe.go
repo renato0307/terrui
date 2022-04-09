@@ -8,7 +8,7 @@ import (
 )
 
 type TFEClient interface {
-	ListOrganizations() (*tfe.OrganizationList, error)
+	ListOrganizations(pageNumber int) (*tfe.OrganizationList, error)
 	ListWorkspaces(org string, searchText string, pageNumber int) (*tfe.WorkspaceList, error)
 	ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 	ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error)
@@ -33,8 +33,17 @@ func NewTFEClient() (TFEClient, error) {
 	return &c, nil
 }
 
-func (c *TFEClientImpl) ListOrganizations() (*tfe.OrganizationList, error) {
-	return c.client.Organizations.List(context.Background(), &tfe.OrganizationListOptions{})
+func (c *TFEClientImpl) ListOrganizations(pageNumber int) (*tfe.OrganizationList, error) {
+	options := tfe.OrganizationListOptions{
+		ListOptions: tfe.ListOptions{
+			PageSize: 30,
+		},
+	}
+	if pageNumber != -1 {
+		options.PageNumber = pageNumber
+	}
+
+	return c.client.Organizations.List(context.Background(), &options)
 }
 
 func (c *TFEClientImpl) ListWorkspaces(org string, searchText string, pageNumber int) (*tfe.WorkspaceList, error) {

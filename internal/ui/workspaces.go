@@ -22,6 +22,10 @@ func NewWorkspacesPage(app *App) Page {
 	return NewListPage(app, &WorkspacesPageSource{app: app})
 }
 
+func (w *WorkspacesPageSource) SupportsSearch() bool {
+	return true
+}
+
 func (w *WorkspacesPageSource) Search(searchText string, pageNumber int) error {
 	tfeClient, err := client.NewTFEClient()
 	if err != nil {
@@ -38,8 +42,6 @@ func (w *WorkspacesPageSource) Search(searchText string, pageNumber int) error {
 }
 
 func (w *WorkspacesPageSource) RenderHeader(table *tview.Table) {
-	table.Clear()
-	table.SetSelectable(true, false)
 	table.SetCell(0, 0, tview.NewTableCell("ID").SetSelectable(false))
 	table.SetCell(0, 1, tview.NewTableCell("NAME").SetSelectable(false))
 	table.SetCell(0, 2, tview.NewTableCell("TAGS").SetSelectable(false))
@@ -103,6 +105,10 @@ func (w *WorkspacesPageSource) Crumb() []string {
 }
 
 func (w *WorkspacesPageSource) Name() string {
+	return "workspace"
+}
+
+func (w *WorkspacesPageSource) NameList() string {
 	return WorkspacesPageName
 }
 
@@ -116,7 +122,7 @@ func (w *WorkspacesPageSource) ActionSelectWorkspace(table *tview.Table, current
 }
 
 func (w *WorkspacesPageSource) Empty() bool {
-	return false
+	return w.workspaces == nil || len(w.workspaces.Items) == 0
 }
 
 func (w *WorkspacesPageSource) CurrentPage() int {

@@ -12,9 +12,12 @@ type ListPageSource interface {
 
 	Crumb() []string
 	Name() string
+	NameList() string
 
 	RenderHeader(table *tview.Table)
 	RenderRows(table *tview.Table)
+
+	SupportsSearch() bool
 	Search(searchText string, pageNumber int) error
 
 	Empty() bool
@@ -73,9 +76,8 @@ func (l *ListPage) View() string {
 	l.table.SetSelectable(true, false)
 
 	l.source.RenderHeader(l.table)
-
 	if l.source.Empty() {
-		return fmt.Sprintf("no %s found", l.source.Name())
+		return fmt.Sprintf("no %s found", l.source.NameList())
 	}
 
 	l.source.RenderRows(l.table)
@@ -88,20 +90,27 @@ func (l *ListPage) View() string {
 		fmt.Sprintf("page %d of %d, total %s: %d",
 			l.source.CurrentPage(),
 			l.source.TotalPages(),
-			l.source.Name(),
+			l.source.NameList(),
 			l.source.TotalCount()))
 
 	return "workspaces loaded"
 }
 
 func (l *ListPage) BindKeys() KeyActions {
-	return KeyActions{
-		tcell.KeyEnter: NewKeyAction("select workspace", l.actionSelectWorkspace, true),
+	aa := KeyActions{
+		tcell.KeyEnter: NewKeyAction(fmt.Sprintf("select %s", l.source.Name()), l.actionSelectWorkspace, true),
 		tcell.KeyCtrlJ: NewKeyAction("next page", l.actionPaginationNextPage, true),
 		tcell.KeyCtrlK: NewKeyAction("previous page", l.actionPaginationPrevPage, true),
-		KeySlash:       NewKeyAction("search workspaces", l.actionSearch, true),
-		tcell.KeyEsc:   NewKeyAction("cancel search if search results are active", l.actionCancelSearch, true),
 	}
+
+	if l.source.SupportsSearch() {
+		aa.Add(KeyActions{
+			KeySlash:     NewKeyAction(fmt.Sprintf("search %s", l.source.NameList()), l.actionSearch, true),
+			tcell.KeyEsc: NewKeyAction("cancel search if search results are active", l.actionCancelSearch, true),
+		})
+	}
+
+	return aa
 }
 
 func (l *ListPage) Crumb() []string {
@@ -109,7 +118,7 @@ func (l *ListPage) Crumb() []string {
 }
 
 func (l *ListPage) Name() string {
-	return l.source.Name()
+	return l.source.NameList()
 }
 
 func (l *ListPage) Footer() string {
