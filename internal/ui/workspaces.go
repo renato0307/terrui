@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/gdamore/tcell/v2"
 	"github.com/hashicorp/go-tfe"
 	"github.com/rivo/tview"
@@ -48,7 +49,7 @@ func (w *WorkspacesPageSource) RenderHeader(table *tview.Table) {
 	table.SetCell(0, 3, tview.NewTableCell("TERRAFORM").SetSelectable(false))
 	table.SetCell(0, 4, tview.NewTableCell("COUNT").SetSelectable(false))
 	table.SetCell(0, 5, tview.NewTableCell("RUN STATUS").SetSelectable(false))
-	table.SetCell(0, 5, tview.NewTableCell("LATEST CHANGE").SetSelectable(false))
+	table.SetCell(0, 6, tview.NewTableCell("LATEST CHANGE").SetSelectable(false))
 }
 
 func (w *WorkspacesPageSource) RenderRows(table *tview.Table) {
@@ -70,7 +71,7 @@ func fmtTags(w *tfe.Workspace) *tview.TableCell {
 }
 
 func fmtUpdatedAt(w *tfe.Workspace) *tview.TableCell {
-	return tview.NewTableCell(w.UpdatedAt.Local().Format("02 Jan 06 15:04 MST"))
+	return tview.NewTableCell(humanize.Time(w.UpdatedAt.Local()))
 }
 
 func fmtCurrentRun(w *tfe.Workspace) *tview.TableCell {
