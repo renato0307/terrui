@@ -97,7 +97,7 @@ func (w *WorkspacePage) View() string {
 		Description:      workspace.Description,
 		TerraformVersion: workspace.TerraformVersion,
 		Resources:        workspace.ResourceCount,
-		Updated:          workspace.UpdatedAt.Local().Format(time.RFC3339),
+		Updated:          fmtTime(workspace.UpdatedAt),
 		Locked:           workspace.Locked,
 		WorkingDirectory: workspace.WorkingDirectory,
 		ExecutionMode:    workspace.ExecutionMode,
@@ -108,7 +108,7 @@ func (w *WorkspacePage) View() string {
 	if workspace.CurrentRun != nil {
 		if workspace.CurrentRun.CreatedBy != nil {
 			wLastRun.By = workspace.CurrentRun.CreatedBy.Username
-			wLastRun.When = workspace.CurrentRun.CreatedAt.Local().Format(time.RFC3339)
+			wLastRun.When = fmtTime(workspace.CurrentRun.CreatedAt)
 		}
 		wLastRun.Status = string(workspace.CurrentRun.Status)
 		wLastRun.ResourcesAdded = workspace.CurrentRun.Plan.ResourceAdditions
@@ -276,7 +276,7 @@ func (w *WorkspacePage) showRuns(list *tview.List, showShortcuts bool) {
 			destroyRun = " | destroy run 🔥"
 		}
 
-		secondaryText := fmt.Sprintf("%s%s%s | %s", v.ID, createdBy, destroyRun, humanize.Time(v.CreatedAt))
+		secondaryText := fmt.Sprintf("%s%s%s | %s", v.ID, createdBy, destroyRun, fmtTime(v.CreatedAt))
 
 		if !showShortcuts {
 			shortcut = 0
@@ -325,4 +325,8 @@ func (w *WorkspacePage) listWorkspaces(ek *tcell.EventKey) *tcell.EventKey {
 	w.app.activatePage(WorkspacesPageName, nil, false)
 
 	return nil
+}
+
+func fmtTime(t time.Time) string {
+	return fmt.Sprintf("%s (%s)", humanize.Time(t.Local()), t.Local().Format(time.RFC3339))
 }
