@@ -12,6 +12,7 @@ type TFEClient interface {
 	ListWorkspaces(org string, searchText string, pageNumber int) (*tfe.WorkspaceList, error)
 	ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 	ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error)
+	ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error)
 }
 
 type TFEClientImpl struct {
@@ -80,4 +81,9 @@ func (c *TFEClientImpl) ReadWorkspace(org, workspace string) (*tfe.Workspace, er
 
 func (c *TFEClientImpl) ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error) {
 	return c.client.Variables.List(context.Background(), workspaceID, &tfe.VariableListOptions{})
+}
+
+func (c *TFEClientImpl) ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error) {
+	options := &tfe.RunListOptions{Include: []tfe.RunIncludeOpt{"created_by"}}
+	return c.client.Runs.List(context.Background(), workspaceID, options)
 }

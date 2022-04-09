@@ -136,6 +136,8 @@ func (a *App) ExecPageWithLoadFunc(p Page, loadFn func() error, skipLoad bool) {
 		} else {
 			a.footer.ShowText(p.Footer())
 		}
+
+		a.SetFocus(p)
 	})
 }
 

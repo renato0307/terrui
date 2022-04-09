@@ -80,7 +80,9 @@ func fmtCurrentRun(w *tfe.Workspace) *tview.TableCell {
 
 	style := tcell.StyleDefault
 	style = style.Background(tview.Styles.PrimitiveBackgroundColor)
-	switch w.CurrentRun.Status {
+
+	status := w.CurrentRun.Status
+	switch status {
 	case tfe.RunErrored:
 		style = style.Bold(true)
 		style = style.Foreground(tcell.ColorRed)

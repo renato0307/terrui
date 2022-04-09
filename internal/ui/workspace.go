@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/gdamore/tcell/v2"
 	"github.com/hashicorp/go-tfe"
 	"github.com/rivo/tview"
@@ -20,6 +21,7 @@ type WorkspacePage struct {
 	app       *App
 	workspace *tfe.Workspace
 	variables *tfe.VariableList
+	runs      *tfe.RunList
 }
 
 type workspaceBaseInfo struct {
@@ -77,6 +79,12 @@ func (w *WorkspacePage) Load() error {
 	}
 	w.variables = vars
 
+	runs, err := tfeClient.ListWorkspaceRuns(workspace.ID)
+	if err != nil {
+		return fmt.Errorf("error reading the workspace variables: %w", err)
+	}
+	w.runs = runs
+
 	return nil
 }
 
@@ -123,6 +131,7 @@ func (w *WorkspacePage) View() string {
 	tags := tview.NewList()
 	lastRun := tview.NewTextView()
 	variables := tview.NewList()
+	runs := tview.NewList()
 
 	details.SetBorder(true)
 	details.SetBorderPadding(0, 1, 1, 1)
@@ -142,7 +151,7 @@ func (w *WorkspacePage) View() string {
 	tags.SetMainTextStyle(tcell.StyleDefault.Bold(true))
 	tags.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
 	tags.SetWrapAround(true)
-	tags.SetSelectedStyle(tcell.StyleDefault.Foreground(tview.Styles.PrimaryTextColor).Background(tview.Styles.PrimitiveBackgroundColor).Bold(true))
+	tags.SetSelectedFocusOnly(true)
 	tags.ShowSecondaryText(false)
 	for _, t := range workspace.TagNames {
 		tags.AddItem(t, "", 0, nil)
@@ -156,10 +165,21 @@ func (w *WorkspacePage) View() string {
 
 	variables.SetBorder(true)
 	variables.SetBorderPadding(0, 1, 1, 1)
+	variables.SetSelectedFocusOnly(true)
 	variables.SetMainTextStyle(tcell.StyleDefault.Bold(true))
 	variables.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
 	variables.SetHighlightFullLine(true)
 	variables.SetWrapAround(true)
+	variables.SetTitle(" variables (most recent) ")
+
+	runs.SetBorder(true)
+	runs.SetBorderPadding(0, 1, 1, 1)
+	runs.SetSelectedFocusOnly(true)
+	runs.SetMainTextStyle(tcell.StyleDefault.Bold(true))
+	runs.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
+	runs.SetHighlightFullLine(true)
+	runs.SetWrapAround(true)
+	runs.SetTitle(" runs (most recent) ")
 
 	flex := tview.NewFlex().
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
@@ -169,7 +189,9 @@ func (w *WorkspacePage) View() string {
 			AddItem(tags, 0, 1, false), 0, 1, false)
 
 	if w.app.config.WorkspaceShowVariables {
-		flex.AddItem(variables, 0, 2, false)
+		flex.AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(variables, 0, 2, false).
+			AddItem(runs, 0, 2, false), 0, 1, false)
 	}
 
 	flex.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
@@ -180,13 +202,19 @@ func (w *WorkspacePage) View() string {
 	w.Flex = flex
 
 	w.showVariables(variables, true)
+	w.showRuns(runs, true)
 
 	return "workspace loaded"
 }
 
 func (w *WorkspacePage) showVariables(list *tview.List, showShortcuts bool) {
+	max := 10
 	shortcut := int('0')
-	for _, v := range w.variables.Items {
+	for i, v := range w.variables.Items {
+		if i == max {
+			break
+		}
+
 		value := v.Value
 		if v.Sensitive {
 			value = "******"
@@ -214,8 +242,59 @@ func (w *WorkspacePage) showVariables(list *tview.List, showShortcuts bool) {
 			shortcut = shortcut + 1
 		}
 	}
+}
 
-	w.app.SetFocus(list)
+func (w *WorkspacePage) showRuns(list *tview.List, showShortcuts bool) {
+	max := 10
+	shortcut := int('0')
+	for i, v := range w.runs.Items {
+		if i == max {
+			break
+		}
+
+		iconStatus := ""
+		switch v.Status {
+		case tfe.RunErrored:
+			iconStatus = "❌ "
+		case tfe.RunApplied, tfe.RunPlannedAndFinished:
+			iconStatus = "✅	 "
+		case tfe.RunPlanned, tfe.RunPlanning:
+			iconStatus = "⏳ "
+		case tfe.RunDiscarded:
+			iconStatus = "🌪 "
+		}
+
+		mainText := fmt.Sprintf("%s » %s%s", v.Message, iconStatus, v.Status)
+
+		createdBy := ""
+		if v.CreatedBy != nil {
+			createdBy = fmt.Sprintf(" | %s", v.CreatedBy.Username)
+		}
+
+		destroyRun := ""
+		if v.IsDestroy {
+			destroyRun = " | destroy run 🔥"
+		}
+
+		secondaryText := fmt.Sprintf("%s%s%s | %s", v.ID, createdBy, destroyRun, humanize.Time(v.CreatedAt))
+
+		if !showShortcuts {
+			shortcut = 0
+		}
+		list.AddItem(mainText, secondaryText, rune(shortcut), nil)
+
+		if shortcut == '9' {
+			shortcut = 'a' - 1
+		} else if shortcut == 'z' {
+			shortcut = 'A' - 1
+		} else if shortcut == 'Z' {
+			shortcut = '.'
+		}
+
+		if shortcut != '.' {
+			shortcut = shortcut + 1
+		}
+	}
 }
 
 func (w *WorkspacePage) BindKeys() KeyActions {
