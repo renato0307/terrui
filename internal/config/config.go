@@ -12,6 +12,8 @@ type Config struct {
 	Organization           string `json:"organization"`
 	Workspace              string `json:"workspace"`
 	WorkspaceShowVariables bool   `json:"workspace_show_vars"`
+
+	RunID string
 }
 
 const configDirectory = ".config/terrui"

@@ -77,6 +77,7 @@ func initPages() map[string]PageFactory {
 	pagesMap[OrganizationsPageName] = NewOrganizationsPage
 	pagesMap[WorkspacesPageName] = NewWorkspacesPage
 	pagesMap[WorkspacePageName] = NewWorkspacePage
+	pagesMap[RunPageName] = NewRunPage
 	pagesMap[HelpPageName] = NewHelpPage
 
 	return pagesMap
@@ -88,7 +89,11 @@ func (a *App) activatePage(name string, page Page, skipLoad bool) {
 	}
 
 	if page == nil {
-		pageFactory := a.pagesMap[name]
+		pageFactory, ok := a.pagesMap[name]
+		if !ok {
+			a.footer.ShowError(fmt.Sprintf("😵 page %s not configured", name))
+			return
+		}
 		page = pageFactory(a)
 	}
 
@@ -122,6 +127,8 @@ func (a *App) ExecPageWithLoadFunc(p Page, loadFn func() error, skipLoad bool) {
 	})
 
 	a.QueueUpdateDraw(func() {
+		a.SetFocus(p)
+
 		if !skipLoad {
 			err := loadFn()
 			if err != nil {
@@ -137,7 +144,6 @@ func (a *App) ExecPageWithLoadFunc(p Page, loadFn func() error, skipLoad bool) {
 			a.footer.ShowText(p.Footer())
 		}
 
-		a.SetFocus(p)
 	})
 }
 

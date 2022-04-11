@@ -13,6 +13,9 @@ type TFEClient interface {
 	ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 	ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error)
 	ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error)
+	ReadWorkspaceRun(runID string) (*tfe.Run, error)
+	ReadWorkspacePlan(planID string) (*tfe.Plan, error)
+	ReadWorkspacePlanJSON(planID string) ([]byte, error)
 }
 
 type TFEClientImpl struct {
@@ -86,4 +89,17 @@ func (c *TFEClientImpl) ListWorkspaceVariables(workspaceID string) (*tfe.Variabl
 func (c *TFEClientImpl) ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error) {
 	options := &tfe.RunListOptions{Include: []tfe.RunIncludeOpt{"created_by"}}
 	return c.client.Runs.List(context.Background(), workspaceID, options)
+}
+
+func (c *TFEClientImpl) ReadWorkspaceRun(runID string) (*tfe.Run, error) {
+	options := &tfe.RunReadOptions{Include: []tfe.RunIncludeOpt{"plan", "apply"}}
+	return c.client.Runs.ReadWithOptions(context.Background(), runID, options)
+}
+
+func (c *TFEClientImpl) ReadWorkspacePlan(planID string) (*tfe.Plan, error) {
+	return c.client.Plans.Read(context.Background(), planID)
+}
+
+func (c *TFEClientImpl) ReadWorkspacePlanJSON(planID string) ([]byte, error) {
+	return c.client.Plans.ReadJSONOutput(context.Background(), planID)
 }
