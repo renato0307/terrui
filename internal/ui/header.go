@@ -8,7 +8,7 @@ import (
 )
 
 const logoColor string = "red"
-const color string = "yellow"
+const color string = "gray"
 const activeColor string = "navy"
 
 type Header struct {
