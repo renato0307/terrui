@@ -15,7 +15,7 @@ about tview and how to do proper TUIs - expect some tech debt.
 
 1. ~Search workspaces~ DONE
 1. Inspect state
-1. List workspace runs
+1. ~List workspace runs~ DONE
 
 ## Improvements
 

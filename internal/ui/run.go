@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/hashicorp/go-tfe"
@@ -17,9 +18,11 @@ type RunPage struct {
 
 	app *App
 
-	run      *tfe.Run
-	plan     *tfe.Plan
-	jsonPlan []byte
+	run         *tfe.Run
+	plan        *tfe.Plan
+	apply       *tfe.Apply
+	jsonPlan    []byte
+	readerApply io.Reader
 
 	loadingChan chan string
 }
@@ -45,7 +48,6 @@ func NewRunPage(app *App) Page {
 
 func (r *RunPage) Load() error {
 	r.loadingChan = make(chan string)
-	
 	tfeClient, err := client.NewTFEClient()
 	if err != nil {
 		return fmt.Errorf("error creating the TFE client: %w", err)
@@ -63,15 +65,31 @@ func (r *RunPage) Load() error {
 	}
 	r.plan = plan
 
+	var errPlan error
 	go func() {
 		planJSON, err := tfeClient.ReadWorkspacePlanJSON(run.Plan.ID)
 		if err != nil {
-			return fmt.Errorf("error reading the plan: %w", err)
+			errPlan = fmt.Errorf("error reading the plan details: %w", err)
+		} else {
+			r.jsonPlan = planJSON
+			r.loadingChan <- "plan"
 		}
-		r.planJSON = plan
-		r.loadingChan <- "plan"
-		close(r.loadingChan)
 	}()
+
+	var errLoadApply error
+	go func() {
+		readerApplyLogs, err := tfeClient.ReadWorkspaceApplyLogs(run.Plan.ID)
+		if err != nil {
+			errLoadApply = fmt.Errorf("error reading the apply details: %w", err)
+		} else {
+			r.readerApply = readerApplyLogs
+			r.loadingChan <- "apply"
+		}
+	}()
+
+	if errPlan != nil || errLoadApply != nil {
+		return fmt.Errorf("could not load run details")
+	}
 
 	return nil
 }
@@ -121,7 +139,28 @@ func (r *RunPage) View() string {
 	r.Flex = flex
 
 	go func() {
-		for 
+		loadingAsyncsFinished := 0
+		for v := range r.loadingChan {
+			loadingAsyncsFinished++
+			fmt.Println(v, loadingAsyncsFinished)
+			if v == "plan" {
+				if r.jsonPlan == nil {
+					plan.SetText("plan details could not be loaded!")
+					return
+				}
+				plan.SetText("loading done!")
+			} else if v == "apply" {
+				if r.jsonPlan == nil {
+					apply.SetText("apply details could not be loaded!")
+					return
+				}
+				apply.SetText("loading done!")
+			}
+
+			if loadingAsyncsFinished == 2 {
+				break
+			}
+		}
 	}()
 
 	return "run loaded"

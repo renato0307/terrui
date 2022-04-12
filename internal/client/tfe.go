@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"io"
 	"os"
 
 	"github.com/hashicorp/go-tfe"
@@ -16,6 +17,7 @@ type TFEClient interface {
 	ReadWorkspaceRun(runID string) (*tfe.Run, error)
 	ReadWorkspacePlan(planID string) (*tfe.Plan, error)
 	ReadWorkspacePlanJSON(planID string) ([]byte, error)
+	ReadWorkspaceApplyLogs(planID string) (io.Reader, error)
 }
 
 type TFEClientImpl struct {
@@ -102,4 +104,8 @@ func (c *TFEClientImpl) ReadWorkspacePlan(planID string) (*tfe.Plan, error) {
 
 func (c *TFEClientImpl) ReadWorkspacePlanJSON(planID string) ([]byte, error) {
 	return c.client.Plans.ReadJSONOutput(context.Background(), planID)
+}
+
+func (c *TFEClientImpl) ReadWorkspaceApplyLogs(planID string) (io.Reader, error) {
+	return c.client.Applies.Logs(context.Background(), planID)
 }
