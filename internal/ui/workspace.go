@@ -20,8 +20,13 @@ type WorkspacePage struct {
 
 	app       *App
 	workspace *tfe.Workspace
+
 	variables *tfe.VariableList
-	runs      *tfe.RunList
+
+	runs          *tfe.RunList
+	selectedRunID string
+
+	sections []*tview.Box
 }
 
 type workspaceBaseInfo struct {
@@ -90,6 +95,7 @@ func (w *WorkspacePage) Load() error {
 
 func (w *WorkspacePage) View() string {
 	workspace := w.workspace
+	w.sections = []*tview.Box{}
 
 	workspaceBase := workspaceBaseInfo{
 		ID:               workspace.ID,
@@ -135,7 +141,7 @@ func (w *WorkspacePage) View() string {
 
 	details.SetBorder(true)
 	details.SetBorderPadding(0, 1, 1, 1)
-	details.SetTitle(" details ")
+	details.SetTitle(" workspace details ")
 	details.SetText(colorizeYAML(string(yamlBaseData)))
 	details.SetDynamicColors(true)
 
@@ -171,6 +177,17 @@ func (w *WorkspacePage) View() string {
 	variables.SetHighlightFullLine(true)
 	variables.SetWrapAround(true)
 	variables.SetTitle(" variables (most recent) ")
+	variables.SetFocusFunc(func() {
+		w.app.actions.Add(
+			KeyActions{
+				tcell.KeyEnter: NewKeyAction("select run", w.actionShowVariable, true),
+			},
+		)
+	})
+	variables.SetBlurFunc(func() {
+		w.app.actions.Delete(tcell.KeyEnter)
+	})
+	w.sections = append(w.sections, variables.Box)
 
 	runs.SetBorder(true)
 	runs.SetBorderPadding(0, 1, 1, 1)
@@ -180,6 +197,20 @@ func (w *WorkspacePage) View() string {
 	runs.SetHighlightFullLine(true)
 	runs.SetWrapAround(true)
 	runs.SetTitle(" runs (most recent) ")
+	runs.SetFocusFunc(func() {
+		w.app.actions.Add(
+			KeyActions{
+				tcell.KeyEnter: NewKeyAction("select run", w.actionShowRun, true),
+			},
+		)
+	})
+	runs.SetBlurFunc(func() {
+		w.app.actions.Delete(tcell.KeyEnter)
+	})
+	runs.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+		w.selectedRunID = w.runs.Items[index].ID
+	})
+	w.sections = append(w.sections, runs.Box)
 
 	flex := tview.NewFlex().
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
@@ -299,7 +330,8 @@ func (w *WorkspacePage) showRuns(list *tview.List, showShortcuts bool) {
 
 func (w *WorkspacePage) BindKeys() KeyActions {
 	return KeyActions{
-		tcell.KeyCtrlL: NewKeyAction("list workspaces", w.listWorkspaces, true),
+		tcell.KeyCtrlL: NewKeyAction("list workspaces", w.actionListWorkspaces, true),
+		tcell.KeyTab:   NewKeyAction("focus variables and run lists", w.actionFocusNextList, true),
 	}
 }
 
@@ -318,12 +350,46 @@ func (w *WorkspacePage) Footer() string {
 	return ""
 }
 
-func (w *WorkspacePage) listWorkspaces(ek *tcell.EventKey) *tcell.EventKey {
+func (w *WorkspacePage) actionListWorkspaces(ek *tcell.EventKey) *tcell.EventKey {
 	w.app.config.Workspace = ""
 	w.app.config.Save()
 
 	w.app.activatePage(WorkspacesPageName, nil, false)
 
+	return nil
+}
+
+func (w *WorkspacePage) actionFocusNextList(ek *tcell.EventKey) *tcell.EventKey {
+	for i, b := range w.sections {
+		if !b.HasFocus() {
+			continue
+		}
+
+		nextToFocus := i + 1
+		if nextToFocus == len(w.sections) {
+			w.app.SetFocus(w)
+		} else {
+			w.app.SetFocus(w.sections[nextToFocus])
+		}
+
+		return nil
+	}
+
+	// No section was focused
+	w.app.SetFocus(w.sections[0])
+	return nil
+}
+
+func (w *WorkspacePage) actionShowRun(ek *tcell.EventKey) *tcell.EventKey {
+	w.app.config.RunID = w.selectedRunID
+	w.app.config.Save()
+
+	w.app.activatePage(RunPageName, nil, false)
+	return nil
+}
+
+func (w *WorkspacePage) actionShowVariable(ek *tcell.EventKey) *tcell.EventKey {
+	w.app.footer.Show("loading run", tview.Styles.PrimaryTextColor)
 	return nil
 }
 

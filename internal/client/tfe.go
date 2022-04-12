@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"io"
 	"os"
 
 	"github.com/hashicorp/go-tfe"
@@ -13,6 +14,10 @@ type TFEClient interface {
 	ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 	ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error)
 	ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error)
+	ReadWorkspaceRun(runID string) (*tfe.Run, error)
+	ReadWorkspacePlan(planID string) (*tfe.Plan, error)
+	ReadWorkspacePlanLogs(planID string) (io.Reader, error)
+	ReadWorkspaceApplyLogs(planID string) (io.Reader, error)
 }
 
 type TFEClientImpl struct {
@@ -86,4 +91,21 @@ func (c *TFEClientImpl) ListWorkspaceVariables(workspaceID string) (*tfe.Variabl
 func (c *TFEClientImpl) ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error) {
 	options := &tfe.RunListOptions{Include: []tfe.RunIncludeOpt{"created_by"}}
 	return c.client.Runs.List(context.Background(), workspaceID, options)
+}
+
+func (c *TFEClientImpl) ReadWorkspaceRun(runID string) (*tfe.Run, error) {
+	options := &tfe.RunReadOptions{Include: []tfe.RunIncludeOpt{"plan", "apply"}}
+	return c.client.Runs.ReadWithOptions(context.Background(), runID, options)
+}
+
+func (c *TFEClientImpl) ReadWorkspacePlan(planID string) (*tfe.Plan, error) {
+	return c.client.Plans.Read(context.Background(), planID)
+}
+
+func (c *TFEClientImpl) ReadWorkspacePlanLogs(planID string) (io.Reader, error) {
+	return c.client.Plans.Logs(context.Background(), planID)
+}
+
+func (c *TFEClientImpl) ReadWorkspaceApplyLogs(planID string) (io.Reader, error) {
+	return c.client.Applies.Logs(context.Background(), planID)
 }
