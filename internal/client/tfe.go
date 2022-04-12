@@ -16,7 +16,7 @@ type TFEClient interface {
 	ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error)
 	ReadWorkspaceRun(runID string) (*tfe.Run, error)
 	ReadWorkspacePlan(planID string) (*tfe.Plan, error)
-	ReadWorkspacePlanJSON(planID string) ([]byte, error)
+	ReadWorkspacePlanLogs(planID string) (io.Reader, error)
 	ReadWorkspaceApplyLogs(planID string) (io.Reader, error)
 }
 
@@ -102,8 +102,8 @@ func (c *TFEClientImpl) ReadWorkspacePlan(planID string) (*tfe.Plan, error) {
 	return c.client.Plans.Read(context.Background(), planID)
 }
 
-func (c *TFEClientImpl) ReadWorkspacePlanJSON(planID string) ([]byte, error) {
-	return c.client.Plans.ReadJSONOutput(context.Background(), planID)
+func (c *TFEClientImpl) ReadWorkspacePlanLogs(planID string) (io.Reader, error) {
+	return c.client.Plans.Logs(context.Background(), planID)
 }
 
 func (c *TFEClientImpl) ReadWorkspaceApplyLogs(planID string) (io.Reader, error) {

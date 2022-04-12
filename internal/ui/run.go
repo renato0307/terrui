@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -16,15 +19,21 @@ const RunPageName string = "Run"
 type RunPage struct {
 	*tview.Flex
 
+	planPrimitive  *tview.TextView
+	applyPrimitive *tview.TextView
+
 	app *App
 
-	run         *tfe.Run
-	plan        *tfe.Plan
-	apply       *tfe.Apply
-	jsonPlan    []byte
-	readerApply io.Reader
+	run   *tfe.Run
+	plan  *tfe.Plan
+	apply *tfe.Apply
+
+	planReader  io.Reader
+	applyReader io.Reader
 
 	loadingChan chan string
+
+	sections []*tview.Box
 }
 
 type runBaseInfo struct {
@@ -35,6 +44,32 @@ type runBaseInfo struct {
 	Status    string `yaml:"Status"`
 	AutoApply bool   `yaml:"AutoApply"`
 	IsDestroy bool   `yaml:"Is Destroy"`
+}
+
+type applyLogEntry struct {
+	Level            string         `json:"@level"`
+	Message          string         `json:"@message"`
+	Module           string         `json:"@module"`
+	Change           applyLogChange `json:"change"`
+	Timestamp        string         `json:"@timestamp"`
+	TerraformVersion string         `json:"@terraform"`
+	Type             string         `json:"type"`
+	UI               string         `json:"@ui"`
+}
+
+type applyLogChange struct {
+	Resource applyLogChangeResource `json:"resource"`
+	Action   string                 `json:"action"`
+}
+
+type applyLogChangeResource struct {
+	Addr            string `json:"addr"`
+	Module          string `json:"module"`
+	Resource        string `json:"resource"`
+	ImpliedProvider string `json:"implied_provider"`
+	ResourceType    string `json:"resource_type"`
+	ResourceName    string `json:"resource_name"`
+	ResourceKey     string `json:"resource_key"`
 }
 
 func NewRunPage(app *App) Page {
@@ -65,36 +100,42 @@ func (r *RunPage) Load() error {
 	}
 	r.plan = plan
 
-	var errPlan error
-	go func() {
-		planJSON, err := tfeClient.ReadWorkspacePlanJSON(run.Plan.ID)
-		if err != nil {
-			errPlan = fmt.Errorf("error reading the plan details: %w", err)
-		} else {
-			r.jsonPlan = planJSON
-			r.loadingChan <- "plan"
-		}
-	}()
+	errLoadPlan, errLoadApply := r.loadPlanAndApplyDetails(tfeClient, run)
 
-	var errLoadApply error
-	go func() {
-		readerApplyLogs, err := tfeClient.ReadWorkspaceApplyLogs(run.Plan.ID)
-		if err != nil {
-			errLoadApply = fmt.Errorf("error reading the apply details: %w", err)
-		} else {
-			r.readerApply = readerApplyLogs
-			r.loadingChan <- "apply"
-		}
-	}()
-
-	if errPlan != nil || errLoadApply != nil {
+	if errLoadPlan != nil || errLoadApply != nil {
 		return fmt.Errorf("could not load run details")
 	}
 
 	return nil
 }
 
+func (r *RunPage) loadPlanAndApplyDetails(tfeClient client.TFEClient, run *tfe.Run) (error, error) {
+	var errLoadPlan error
+	go func() {
+		planLogsReader, err := tfeClient.ReadWorkspacePlanLogs(run.Plan.ID)
+		if err != nil {
+			errLoadPlan = fmt.Errorf("error reading the plan details: %w", err)
+		} else {
+			r.planReader = planLogsReader
+		}
+		r.loadingChan <- "plan"
+	}()
+
+	var errLoadApply error
+	go func() {
+		applyLogsReader, err := tfeClient.ReadWorkspaceApplyLogs(run.Apply.ID)
+		if err != nil {
+			errLoadApply = fmt.Errorf("error reading the apply details: %w", err)
+		} else {
+			r.applyReader = applyLogsReader
+		}
+		r.loadingChan <- "apply"
+	}()
+	return errLoadPlan, errLoadApply
+}
+
 func (r *RunPage) View() string {
+	r.sections = []*tview.Box{}
 
 	runBase := runBaseInfo{
 		ID:        r.run.ID,
@@ -113,7 +154,7 @@ func (r *RunPage) View() string {
 
 	details.SetBorder(true)
 	details.SetBorderPadding(0, 1, 1, 1)
-	details.SetTitle(" details ")
+	details.SetTitle(" run details ")
 	details.SetText(colorizeYAML(string(yamlBaseData)))
 	details.SetDynamicColors(true)
 
@@ -122,53 +163,101 @@ func (r *RunPage) View() string {
 	plan.SetTitle(" plan ")
 	plan.SetText("⏳ loading...")
 	plan.SetDynamicColors(true)
+	plan.SetWrap(false)
+	r.sections = append(r.sections, plan.Box)
 
 	apply.SetBorder(true)
 	apply.SetBorderPadding(0, 1, 1, 1)
 	apply.SetTitle(" apply ")
 	apply.SetText("⏳ loading...")
 	apply.SetDynamicColors(true)
+	apply.SetWrap(false)
+	r.sections = append(r.sections, apply.Box)
 
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(details, 0, 1, false).
 		AddItem(tview.NewFlex().
+			SetDirection(tview.FlexRow).
 			AddItem(plan, 0, 1, false).
 			AddItem(apply, 0, 1, false), 0, 5, false)
 
 	r.Flex = flex
+	r.planPrimitive = plan
+	r.applyPrimitive = apply
 
-	go func() {
-		loadingAsyncsFinished := 0
-		for v := range r.loadingChan {
-			loadingAsyncsFinished++
-			fmt.Println(v, loadingAsyncsFinished)
-			if v == "plan" {
-				if r.jsonPlan == nil {
-					plan.SetText("plan details could not be loaded!")
-					return
-				}
-				plan.SetText("loading done!")
-			} else if v == "apply" {
-				if r.jsonPlan == nil {
-					apply.SetText("apply details could not be loaded!")
-					return
-				}
-				apply.SetText("loading done!")
-			}
-
-			if loadingAsyncsFinished == 2 {
-				break
-			}
-		}
-	}()
+	go r.viewPlanAndApplyDetails()
 
 	return "run loaded"
+}
+
+func (r *RunPage) viewPlanAndApplyDetails() {
+	loadingAsyncsFinished := 0
+	for v := range r.loadingChan {
+		if v == "plan" {
+			loadingAsyncsFinished++
+			if r.planReader == nil {
+				r.planPrimitive.SetText("plan details could not be loaded!")
+				continue
+			}
+			go r.viewPlanDetails()
+		} else if v == "apply" {
+			loadingAsyncsFinished++
+			if r.applyReader == nil {
+				r.applyPrimitive.SetText("apply details could not be loaded!")
+				continue
+			}
+			go r.viewApplyDetails()
+		}
+
+		if loadingAsyncsFinished == 2 {
+			break
+		}
+	}
+}
+
+func (r *RunPage) viewPlanDetails() {
+	scanner := bufio.NewScanner(r.planReader)
+	scanner.Split(bufio.ScanLines)
+
+	outputBuf := bytes.Buffer{}
+	for scanner.Scan() {
+		log := applyLogEntry{}
+		err := json.Unmarshal(scanner.Bytes(), &log)
+
+		if err != nil {
+			outputBuf.WriteString(fmt.Sprintln(scanner.Text()))
+			continue
+		}
+
+		outputBuf.WriteString(fmt.Sprintln(log.Message))
+	}
+	r.planPrimitive.SetText(outputBuf.String())
+}
+
+func (r *RunPage) viewApplyDetails() {
+	scanner := bufio.NewScanner(r.applyReader)
+	scanner.Split(bufio.ScanLines)
+
+	outputBuf := bytes.Buffer{}
+	for scanner.Scan() {
+		log := applyLogEntry{}
+		err := json.Unmarshal(scanner.Bytes(), &log)
+
+		if err != nil {
+			outputBuf.WriteString(fmt.Sprintln(scanner.Text()))
+			continue
+		}
+
+		outputBuf.WriteString(fmt.Sprintln(log.Message))
+	}
+	r.applyPrimitive.SetText(outputBuf.String())
 }
 
 func (r *RunPage) BindKeys() KeyActions {
 	return KeyActions{
 		tcell.KeyCtrlW: NewKeyAction("go back to the workspace", r.actionReturnToWorkspace, true),
+		tcell.KeyTab:   NewKeyAction("focus plan and apply cells", r.actionFocusNextList, true),
 	}
 }
 
@@ -193,4 +282,25 @@ func (r *RunPage) Name() string {
 
 func (r *RunPage) Footer() string {
 	return ""
+}
+
+func (r *RunPage) actionFocusNextList(ek *tcell.EventKey) *tcell.EventKey {
+	for i, b := range r.sections {
+		if !b.HasFocus() {
+			continue
+		}
+
+		nextToFocus := i + 1
+		if nextToFocus == len(r.sections) {
+			r.app.SetFocus(r)
+		} else {
+			r.app.SetFocus(r.sections[nextToFocus])
+		}
+
+		return nil
+	}
+
+	// No section was focused
+	r.app.SetFocus(r.sections[0])
+	return nil
 }

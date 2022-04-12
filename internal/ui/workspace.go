@@ -141,7 +141,7 @@ func (w *WorkspacePage) View() string {
 
 	details.SetBorder(true)
 	details.SetBorderPadding(0, 1, 1, 1)
-	details.SetTitle(" details ")
+	details.SetTitle(" workspace details ")
 	details.SetText(colorizeYAML(string(yamlBaseData)))
 	details.SetDynamicColors(true)
 
@@ -187,7 +187,6 @@ func (w *WorkspacePage) View() string {
 	variables.SetBlurFunc(func() {
 		w.app.actions.Delete(tcell.KeyEnter)
 	})
-
 	w.sections = append(w.sections, variables.Box)
 
 	runs.SetBorder(true)
@@ -211,7 +210,6 @@ func (w *WorkspacePage) View() string {
 	runs.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 		w.selectedRunID = w.runs.Items[index].ID
 	})
-
 	w.sections = append(w.sections, runs.Box)
 
 	flex := tview.NewFlex().
