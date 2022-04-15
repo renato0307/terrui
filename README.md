@@ -2,3 +2,15 @@
 
 # terrui
 TUI for Terraform Enterprise!
+
+
+## To debug
+
+Run:
+
+```
+ dlv debug --headless --listen=:2345 --api-version=2
+```
+
+Then execute the "Connect to server" launch config in VSCode.
+
