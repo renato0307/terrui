@@ -2,8 +2,10 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/hashicorp/go-tfe"
 )
@@ -58,11 +60,39 @@ func (c *TFEClientImpl) ListWorkspaces(org string, searchText string, pageNumber
 		options.PageNumber = pageNumber
 	}
 
+	textSearch, tagsSearch := parseSearchText(searchText)
+
 	return c.client.Workspaces.List(context.Background(), org, &tfe.WorkspaceListOptions{
 		Include:     []tfe.WSIncludeOpt{"current_run"},
-		Search:      searchText,
+		Search:      textSearch,
+		Tags:        tagsSearch,
 		ListOptions: options,
 	})
+}
+
+func parseSearchText(searchText string) (string, string) {
+	tagsLabels := []string{"tags", "tag", "t"}
+	b := strings.Builder{}
+	var tagsSearch string
+	for _, s := range strings.Split(searchText, " ") {
+		var tags string
+		var found bool
+
+		for _, l := range tagsLabels {
+			_, tags, found = strings.Cut(s, fmt.Sprintf("%s:", l))
+			if found {
+				break
+			}
+		}
+
+		if found {
+			tagsSearch = tags
+		} else {
+			b.WriteString(s)
+			b.WriteString(" ")
+		}
+	}
+	return strings.TrimRight(b.String(), " "), tagsSearch
 }
 
 func (c *TFEClientImpl) ReadWorkspace(org, workspace string) (*tfe.Workspace, error) {
