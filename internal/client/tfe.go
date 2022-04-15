@@ -16,6 +16,7 @@ type TFEClient interface {
 	ReadWorkspace(org, workspace string) (*tfe.Workspace, error)
 	ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error)
 	ListWorkspaceRuns(workspaceID string) (*tfe.RunList, error)
+	ListWorkspaceTeamAccesses(workspaceID string) (*tfe.TeamAccessList, error)
 	ReadWorkspaceRun(runID string) (*tfe.Run, error)
 	ReadWorkspacePlan(planID string) (*tfe.Plan, error)
 	ReadWorkspacePlanLogs(planID string) (io.Reader, error)
@@ -112,6 +113,27 @@ func (c *TFEClientImpl) ReadWorkspace(org, workspace string) (*tfe.Workspace, er
 	w.CurrentRun = r
 
 	return w, err
+}
+
+func (c *TFEClientImpl) ListWorkspaceTeamAccesses(workspaceID string) (*tfe.TeamAccessList, error) {
+	accesses, err := c.client.TeamAccess.List(context.Background(), &tfe.TeamAccessListOptions{
+		WorkspaceID: workspaceID,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, a := range accesses.Items {
+		team, err := c.client.Teams.Read(context.Background(), a.Team.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		a.Team = team
+	}
+
+	return accesses, err
 }
 
 func (c *TFEClientImpl) ListWorkspaceVariables(workspaceID string) (*tfe.VariableList, error) {

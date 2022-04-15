@@ -18,12 +18,11 @@ const WorkspacePageName string = "workspace"
 type WorkspacePage struct {
 	*tview.Flex
 
-	app       *App
-	workspace *tfe.Workspace
-
-	variables *tfe.VariableList
-
+	app           *App
+	workspace     *tfe.Workspace
+	variables     *tfe.VariableList
 	runs          *tfe.RunList
+	accesses      *tfe.TeamAccessList
 	selectedRunID string
 
 	sections []*tview.Box
@@ -41,7 +40,6 @@ type workspaceBaseInfo struct {
 	ExecutionMode    string `yaml:"Execution Mode"`
 	AutoApply        bool   `yaml:"Auto Apply"`
 }
-
 type workspaceLastRun struct {
 	By               string `yaml:"By"`
 	When             string `yaml:"When"`
@@ -90,6 +88,12 @@ func (w *WorkspacePage) Load() error {
 	}
 	w.runs = runs
 
+	accesses, err := tfeClient.ListWorkspaceTeamAccesses(workspace.ID)
+	if err != nil {
+		return fmt.Errorf("error reading the workspace accesses: %w", err)
+	}
+	w.accesses = accesses
+
 	return nil
 }
 
@@ -136,6 +140,7 @@ func (w *WorkspacePage) View() string {
 	metrics := tview.NewTextView()
 	tags := tview.NewList()
 	lastRun := tview.NewTextView()
+	accesses := tview.NewList()
 	variables := tview.NewList()
 	runs := tview.NewList()
 
@@ -144,12 +149,7 @@ func (w *WorkspacePage) View() string {
 	details.SetTitle(" workspace details ")
 	details.SetText(colorizeYAML(string(yamlBaseData)))
 	details.SetDynamicColors(true)
-
-	metrics.SetBorder(true)
-	metrics.SetBorderPadding(0, 1, 1, 1)
-	metrics.SetTitle(fmt.Sprintf(" metrics (last %d runs) ", workspace.RunsCount))
-	metrics.SetText(colorizeYAML(string(yamlMetrics)))
-	metrics.SetDynamicColors(true)
+	w.sections = append(w.sections, details.Box)
 
 	tags.SetBorder(true)
 	tags.SetBorderPadding(0, 1, 1, 1)
@@ -162,6 +162,26 @@ func (w *WorkspacePage) View() string {
 	for _, t := range workspace.TagNames {
 		tags.AddItem(t, "", 0, nil)
 	}
+	w.sections = append(w.sections, tags.Box)
+
+	accesses.SetBorder(true)
+	accesses.SetBorderPadding(0, 1, 1, 1)
+	accesses.SetTitle(" accesses ")
+	accesses.SetMainTextStyle(tcell.StyleDefault.Bold(true))
+	accesses.SetSecondaryTextStyle(tcell.StyleDefault.Dim(true))
+	accesses.SetWrapAround(true)
+	accesses.SetSelectedFocusOnly(true)
+	accesses.ShowSecondaryText(true)
+	for _, a := range w.accesses.Items {
+		accesses.AddItem(a.Team.Name, string(a.Access), 0, nil)
+	}
+	w.sections = append(w.sections, accesses.Box)
+
+	metrics.SetBorder(true)
+	metrics.SetBorderPadding(0, 1, 1, 1)
+	metrics.SetTitle(fmt.Sprintf(" metrics (last %d runs) ", workspace.RunsCount))
+	metrics.SetText(colorizeYAML(string(yamlMetrics)))
+	metrics.SetDynamicColors(true)
 
 	lastRun.SetBorder(true)
 	lastRun.SetBorderPadding(0, 1, 1, 1)
@@ -214,10 +234,13 @@ func (w *WorkspacePage) View() string {
 
 	flex := tview.NewFlex().
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(details, 0, 3, false).
-			AddItem(lastRun, 0, 1, false).
-			AddItem(metrics, 0, 1, false).
-			AddItem(tags, 0, 1, false), 0, 1, false)
+			AddItem(details, 0, 2, false).
+			AddItem(tview.NewFlex().
+				AddItem(tags, 0, 1, false).
+				AddItem(accesses, 0, 1, false), 0, 1, false).
+			AddItem(tview.NewFlex().
+				AddItem(lastRun, 0, 1, false).
+				AddItem(metrics, 0, 1, false), 0, 1, false), 0, 1, false)
 
 	if w.app.config.WorkspaceShowVariables {
 		flex.AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
@@ -251,7 +274,7 @@ func (w *WorkspacePage) showVariables(list *tview.List, showShortcuts bool) {
 			value = "******"
 		}
 		mainText := fmt.Sprintf("%s = %s", v.Key, value)
-		secondaryText := fmt.Sprintf("%s", v.Category)
+		secondaryText := string(v.Category)
 		if v.Sensitive {
 			secondaryText += ", sensitive"
 		}
